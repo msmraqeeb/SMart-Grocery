@@ -127,3 +127,16 @@ export interface Address {
 
 export type ViewMode = 'home' | 'products' | 'admin';
 export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users';
+
+export interface StoreInfo {
+  name: string;
+  logo_url?: string;
+  address: string;
+  phone: string;
+  email: string;
+  socials: {
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+  };
+}

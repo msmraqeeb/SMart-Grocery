@@ -12,27 +12,34 @@ const ProductDetails: React.FC = () => {
   const [selectedAttrValues, setSelectedAttrValues] = useState<Record<string, string>>({});
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
-  
+
   // Review state
   const [reviewComment, setReviewComment] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  
+
   const product = products.find(p => p.slug === slug);
   const productReviews = useMemo(() => reviews.filter(r => r.productId === product?.id), [reviews, product]);
 
   const ratingStats = useMemo(() => {
-    if (productReviews.length === 0) return { average: 0, total: 0, recommendedPercent: 0, starCounts: [0,0,0,0,0] };
+    if (productReviews.length === 0) return { average: 0, total: 0, recommendedPercent: 0, starCounts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<number, number> };
     const total = productReviews.length;
     const sum = productReviews.reduce((acc, r) => acc + r.rating, 0);
-    const average = (sum / total).toFixed(1);
-    const recommended = productReviews.filter(r => r.rating >= 4).length;
-    const recommendedPercent = Math.round((recommended / total) * 100);
-    
-    const counts = [0, 0, 0, 0, 0];
-    productReviews.forEach(r => counts[r.rating - 1]++);
-    
-    return { average, total, recommendedPercent, starCounts: counts.reverse() };
+    const averageVal = sum / total;
+    const average = averageVal.toFixed(1);
+
+    // User requested recommendation % to be based on the average rating score (e.g. 4.0 = 80%)
+    const recommendedPercent = Math.round((averageVal / 5) * 100);
+
+    const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    productReviews.forEach(r => {
+      const rating = Math.round(r.rating);
+      if (rating >= 1 && rating <= 5) {
+        counts[rating]++;
+      }
+    });
+
+    return { average, total, recommendedPercent, starCounts: counts };
   }, [productReviews]);
 
   // Group attributes for dynamic selection
@@ -50,7 +57,7 @@ const ProductDetails: React.FC = () => {
 
   const currentVariant = useMemo(() => {
     if (!product?.variants || Object.keys(selectedAttrValues).length === 0) return null;
-    return product.variants.find(v => 
+    return product.variants.find(v =>
       Object.entries(selectedAttrValues).every(([name, val]) => v.attributeValues[name] === val)
     ) || null;
   }, [selectedAttrValues, product]);
@@ -119,7 +126,7 @@ const ProductDetails: React.FC = () => {
   // When a variant is selected, use its specific price and originalPrice
   const displayPrice = currentVariant ? currentVariant.price : product.price;
   const displayOriginalPrice = currentVariant ? currentVariant.originalPrice : product.originalPrice;
-  
+
   const displayImages = product.images || [];
   const variantImage = currentVariant?.image;
 
@@ -130,19 +137,19 @@ const ProductDetails: React.FC = () => {
           {/* Gallery Section */}
           <div className="lg:w-1/2 space-y-4">
             <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm aspect-square flex items-center justify-center p-8 relative group">
-              <img 
-                src={variantImage || displayImages[activeImageIdx] || ''} 
-                alt={product.name} 
-                className="max-h-full max-w-full object-contain transition-all duration-500" 
+              <img
+                src={variantImage || displayImages[activeImageIdx] || ''}
+                alt={product.name}
+                className="max-h-full max-w-full object-contain transition-all duration-500"
               />
               {displayImages.length > 1 && !variantImage && (
                 <>
-                   <button onClick={() => setActiveImageIdx(prev => (prev === 0 ? displayImages.length - 1 : prev - 1))} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white shadow-md rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-emerald-500">
-                     <ChevronLeft size={24} />
-                   </button>
-                   <button onClick={() => setActiveImageIdx(prev => (prev === displayImages.length - 1 ? 0 : prev + 1))} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white shadow-md rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-emerald-500">
-                     <ChevronRight size={24} />
-                   </button>
+                  <button onClick={() => setActiveImageIdx(prev => (prev === 0 ? displayImages.length - 1 : prev - 1))} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white shadow-md rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-emerald-500">
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button onClick={() => setActiveImageIdx(prev => (prev === displayImages.length - 1 ? 0 : prev + 1))} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white shadow-md rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-emerald-500">
+                    <ChevronRight size={24} />
+                  </button>
                 </>
               )}
             </div>
@@ -150,8 +157,8 @@ const ProductDetails: React.FC = () => {
             {!variantImage && displayImages.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
                 {displayImages.map((img, idx) => (
-                  <button 
-                    key={idx} 
+                  <button
+                    key={idx}
                     onClick={() => setActiveImageIdx(idx)}
                     className={`w-20 h-20 rounded-xl border-2 shrink-0 p-2 bg-white transition-all ${activeImageIdx === idx ? 'border-emerald-500 shadow-md' : 'border-gray-100 hover:border-emerald-200'}`}
                   >
@@ -167,19 +174,19 @@ const ProductDetails: React.FC = () => {
 
           <div className="lg:w-1/2 space-y-6">
             <div className="space-y-4">
-               <span className="text-[11px] font-black text-[#00a651] uppercase tracking-[2px] bg-[#e6fbf2] px-4 py-1.5 rounded-full inline-block">
-                 {product.category}
-               </span>
-               <h1 className="text-3xl md:text-4xl font-black text-gray-800 tracking-tight leading-tight flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-black text-[#00a651] uppercase tracking-[2px] bg-[#e6fbf2] px-4 py-1.5 rounded-full inline-block">
+                {product.category}
+              </span>
+              <h1 className="text-3xl md:text-4xl font-black text-gray-800 tracking-tight leading-tight flex flex-wrap items-center gap-2">
                 {product.name}
                 {currentVariant && (
                   <span className="text-[#00a651] font-bold">
                     ({Object.values(currentVariant.attributeValues).join(', ')})
                   </span>
                 )}
-               </h1>
+              </h1>
             </div>
-            
+
             <div className="flex items-center gap-5 py-2">
               <span className="text-5xl font-black text-[#00a651] flex items-center gap-1.5">
                 <span className="text-3xl font-medium">৳</span>{displayPrice.toFixed(2)}
@@ -195,7 +202,7 @@ const ProductDetails: React.FC = () => {
             {product.shortDescription && (
               <div className="relative pl-8 py-1 my-6">
                 <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#00a651] rounded-full"></div>
-                <div 
+                <div
                   className="text-[16px] text-gray-600 leading-relaxed italic prose prose-sm max-w-none font-medium"
                   dangerouslySetInnerHTML={{ __html: product.shortDescription }}
                 />
@@ -213,11 +220,10 @@ const ProductDetails: React.FC = () => {
                       <button
                         key={val}
                         onClick={() => handleAttrSelect(attr.name, val)}
-                        className={`px-8 py-4 border-2 rounded-[15px] text-sm font-bold transition-all min-w-[110px] shadow-sm ${
-                          isActive 
-                          ? 'bg-[#00a651] border-black text-white shadow-xl' 
+                        className={`px-8 py-4 border-2 rounded-[15px] text-sm font-bold transition-all min-w-[110px] shadow-sm ${isActive
+                          ? 'bg-[#00a651] border-black text-white shadow-xl'
                           : 'bg-white border-gray-100 text-gray-500 hover:border-[#00a651]'
-                        }`}
+                          }`}
                       >
                         {val}
                       </button>
@@ -240,34 +246,33 @@ const ProductDetails: React.FC = () => {
                 <span className="w-14 text-center font-black text-gray-800 text-xl">{quantity}</span>
                 <button onClick={() => setQuantity(prev => prev + 1)} className="px-6 h-full hover:bg-white text-gray-400 hover:text-[#00a651] transition-colors"><Plus size={20} /></button>
               </div>
-              <button 
+              <button
                 onClick={handleAddToCart}
-                className={`flex-1 font-black py-5 px-10 rounded-[20px] transition-all flex items-center justify-center gap-4 h-16 shadow-2xl uppercase tracking-widest text-sm ${
-                  product.variants && product.variants.length > 0 && !currentVariant
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                    : 'bg-[#00a651] hover:bg-[#008c44] text-white shadow-emerald-100 active:scale-95'
-                }`}
+                className={`flex-1 font-black py-5 px-10 rounded-[20px] transition-all flex items-center justify-center gap-4 h-16 shadow-2xl uppercase tracking-widest text-sm ${product.variants && product.variants.length > 0 && !currentVariant
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                  : 'bg-[#00a651] hover:bg-[#008c44] text-white shadow-emerald-100 active:scale-95'
+                  }`}
               >
                 <ShoppingCart size={22} />
                 Add To Cart
               </button>
             </div>
-            
+
             <div className="pt-10 border-t border-gray-100 flex flex-wrap gap-12">
-               <div className="flex flex-col gap-1.5"><span className="text-[11px] font-black text-gray-400 uppercase tracking-[2px]">SKU</span><span className="text-sm font-bold text-gray-800">{currentVariant?.sku || product.sku || 'N/A'}</span></div>
-               <div className="flex flex-col gap-1.5"><span className="text-[11px] font-black text-gray-400 uppercase tracking-[2px]">Brand</span><span className="text-sm font-bold text-gray-800">{product.brand || 'Universal'}</span></div>
-               <div className="flex flex-col gap-1.5"><span className="text-[11px] font-black text-gray-400 uppercase tracking-[2px]">Unit</span><span className="text-sm font-bold text-gray-800">{product.unit || 'Piece'}</span></div>
+              <div className="flex flex-col gap-1.5"><span className="text-[11px] font-black text-gray-400 uppercase tracking-[2px]">SKU</span><span className="text-sm font-bold text-gray-800">{currentVariant?.sku || product.sku || 'N/A'}</span></div>
+              <div className="flex flex-col gap-1.5"><span className="text-[11px] font-black text-gray-400 uppercase tracking-[2px]">Brand</span><span className="text-sm font-bold text-gray-800">{product.brand || 'Universal'}</span></div>
+              <div className="flex flex-col gap-1.5"><span className="text-[11px] font-black text-gray-400 uppercase tracking-[2px]">Unit</span><span className="text-sm font-bold text-gray-800">{product.unit || 'Piece'}</span></div>
             </div>
           </div>
         </div>
 
         {/* Detailed Info Section */}
         <div className="mt-24 bg-[#fcfcfc] rounded-[3rem] p-12 md:p-20 border border-gray-100">
-           <h2 className="text-3xl font-black text-gray-800 uppercase tracking-widest mb-12 text-center">Product Information</h2>
-           <div 
-             className="bg-white p-12 md:p-16 rounded-[2.5rem] border border-gray-100 text-gray-600 leading-[2] text-lg prose prose-emerald max-w-none shadow-sm"
-             dangerouslySetInnerHTML={{ __html: product.description || "No detailed description available for this product." }}
-           />
+          <h2 className="text-3xl font-black text-gray-800 uppercase tracking-widest mb-12 text-center">Product Information</h2>
+          <div
+            className="bg-white p-12 md:p-16 rounded-[2.5rem] border border-gray-100 text-gray-600 leading-[2] text-lg prose prose-emerald max-w-none shadow-sm"
+            dangerouslySetInnerHTML={{ __html: product.description || "No detailed description available for this product." }}
+          />
         </div>
 
         {/* Reviews Section */}
@@ -275,11 +280,11 @@ const ProductDetails: React.FC = () => {
           <div className="flex items-center justify-between mb-16">
             <h2 className="text-4xl font-black text-[#004d40] tracking-tight uppercase">Customer Reviews</h2>
             <div className="hidden md:flex items-center gap-2 bg-emerald-50 px-6 py-3 rounded-2xl border border-emerald-100">
-               <Star size={20} className="text-yellow-400 fill-current" />
-               <span className="text-lg font-black text-emerald-800">{ratingStats.average} / 5.0</span>
+              <Star size={20} className="text-yellow-400 fill-current" />
+              <span className="text-lg font-black text-emerald-800">{ratingStats.average} / 5.0</span>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
             <div className="space-y-10">
               <div className="flex items-center gap-8">
@@ -296,11 +301,11 @@ const ProductDetails: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                 <div className="text-lg font-bold text-gray-600 mb-8">{ratingStats.recommendedPercent}% Recommended by our shoppers</div>
-                 {[5, 4, 3, 2, 1].map((star, idx) => {
-                   const count = ratingStats.starCounts[idx];
-                   const percent = ratingStats.total > 0 ? Math.round((count / ratingStats.total) * 100) : 0;
-                   return (
+                <div className="text-lg font-bold text-gray-600 mb-8">{ratingStats.recommendedPercent}% Recommended by our shoppers</div>
+                {[5, 4, 3, 2, 1].map((star) => {
+                  // User requested fixed percentages based on star value: 1=20%, 2=40%, etc.
+                  const percent = star * 20;
+                  return (
                     <div key={star} className="flex items-center gap-6 group">
                       <span className="text-sm font-black text-gray-500 w-4">{star}</span>
                       <Star size={16} className="text-gray-300" />
@@ -309,8 +314,8 @@ const ProductDetails: React.FC = () => {
                       </div>
                       <span className="text-sm font-bold text-gray-400 w-10 text-right">{percent}%</span>
                     </div>
-                   );
-                 })}
+                  );
+                })}
               </div>
             </div>
 
@@ -322,10 +327,10 @@ const ProductDetails: React.FC = () => {
 
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <textarea 
+                  <textarea
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    placeholder="Describe your experience with this product..." 
+                    placeholder="Describe your experience with this product..."
                     className="w-full border-2 border-gray-100 rounded-[25px] p-6 h-48 outline-none focus:border-[#00a651] focus:ring-8 focus:ring-emerald-50 transition-all text-base placeholder:text-gray-300 bg-gray-50/30"
                   />
                 </div>
@@ -335,17 +340,17 @@ const ProductDetails: React.FC = () => {
                     <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Rate:</span>
                     <div className="flex gap-2">
                       {[1, 2, 3, 4, 5].map(i => (
-                        <Star 
-                          key={i} 
-                          size={32} 
+                        <Star
+                          key={i}
+                          size={32}
                           onClick={() => setReviewRating(i)}
-                          className={`cursor-pointer transition-all hover:scale-125 active:scale-90 ${i <= reviewRating ? 'text-yellow-400 fill-current' : 'text-gray-200'}`} 
+                          className={`cursor-pointer transition-all hover:scale-125 active:scale-90 ${i <= reviewRating ? 'text-yellow-400 fill-current' : 'text-gray-200'}`}
                         />
                       ))}
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     onClick={handleSubmitReview}
                     disabled={isSubmittingReview}
                     className="w-full sm:w-auto bg-[#004d40] hover:bg-black text-white font-black py-5 px-12 rounded-[20px] transition-all text-xs uppercase tracking-[2px] shadow-2xl disabled:opacity-50 active:scale-95"
@@ -360,8 +365,8 @@ const ProductDetails: React.FC = () => {
           <div className="mt-20 pt-20 border-t border-gray-100">
             {productReviews.length === 0 ? (
               <div className="text-center py-24 opacity-40">
-                 <MessageCircle size={64} className="mx-auto text-gray-200 mb-6" />
-                 <p className="text-gray-400 font-bold uppercase tracking-widest text-sm">No reviews found yet. Be the first to share!</p>
+                <MessageCircle size={64} className="mx-auto text-gray-200 mb-6" />
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-sm">No reviews found yet. Be the first to share!</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -382,7 +387,7 @@ const ProductDetails: React.FC = () => {
                       </div>
                     </div>
                     <p className="text-gray-600 text-[16px] leading-[1.8] font-medium italic">"{rev.comment}"</p>
-                    
+
                     {rev.reply && (
                       <div className="mt-8 pl-8 border-l-4 border-[#00a651] py-4 bg-emerald-50/50 rounded-r-3xl">
                         <span className="text-[11px] font-black text-emerald-600 uppercase tracking-[2px] block mb-3">Merchant Reply</span>

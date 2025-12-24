@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address } from '../types';
+import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface StoreContextType {
@@ -17,6 +17,8 @@ interface StoreContextType {
   user: any | null;
   userProfile: UserProfile | null;
   shippingSettings: ShippingSettings;
+  storeInfo: StoreInfo;
+  updateStoreInfo: (info: StoreInfo) => Promise<void>;
   appliedCoupon: Coupon | null;
   cart: CartItem[];
   isAdmin: boolean;
@@ -85,6 +87,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [user, setUser] = useState<any | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [shippingSettings, setShippingSettings] = useState<ShippingSettings>({ insideDhaka: 80, outsideDhaka: 150 });
+  const [storeInfo, setStoreInfo] = useState<StoreInfo>({
+    name: 'SMart',
+    address: '1418 River Drive, Suite 35, Cottonhall, CA 96222',
+    phone: '+0 123 456 789',
+    email: 'support@smart.com',
+    socials: {}
+  });
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('appliedCoupon');
@@ -159,14 +168,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const fetchData = async (activeUser?: any) => {
     try {
-      const [pd, cat, br, coup, rev, set, attr] = await Promise.all([
+      const [pd, cat, br, coup, rev, set, attr, storeSettings] = await Promise.all([
         supabase.from('products').select('*').order('created_at', { ascending: false }),
         supabase.from('categories').select('*').order('name', { ascending: true }),
         supabase.from('brands').select('*').order('name', { ascending: true }),
         supabase.from('coupons').select('*').order('created_at', { ascending: false }),
         supabase.from('reviews').select('*').order('created_at', { ascending: false }),
         supabase.from('settings').select('*').eq('key', 'shipping_fees').maybeSingle(),
-        supabase.from('attributes').select('*').order('name', { ascending: true })
+        supabase.from('attributes').select('*').order('name', { ascending: true }),
+        supabase.from('settings').select('*').eq('key', 'store_info').maybeSingle()
       ]);
 
       if (pd.data) setProducts(pd.data.map(mapProduct));
@@ -176,6 +186,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (rev.data) setReviews(rev.data.map(rv => ({ id: String(rv.id), productId: String(rv.product_id), productName: String(rv.product_name), authorName: String(rv.author_name), rating: Number(rv.rating), comment: String(rv.comment), reply: rv.reply, createdAt: String(rv.created_at) })));
       if (set.data?.value) setShippingSettings(set.data.value);
       if (attr.data) setAttributes(attr.data.map(a => ({ id: String(a.id), name: a.name, values: Array.isArray(a.values) ? a.values : [] })));
+      if (storeSettings.data?.value) setStoreInfo(storeSettings.data.value);
+
 
       if (activeUser) {
         const [ord, usersList] = await Promise.all([
@@ -361,7 +373,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <StoreContext.Provider value={{
-      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, wishlist, user, userProfile, shippingSettings, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
+      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
       setAdminTab: (tab: AdminTab) => setAdminTab(tab), toggleAdmin: () => { }, addToCart, removeFromCart: (id) => setCart(cart.filter(i => (i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id) !== id)),
       updateQuantity: (id, d) => setCart(cart.map(i => {
         const itemKey = i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id;
@@ -393,6 +405,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const { error } = await supabase.from('settings').upsert({ key: 'shipping_fees', value: s });
         if (error) throw new Error(error.message);
         setShippingSettings(s);
+      },
+      updateStoreInfo: async (info) => {
+        const { error } = await supabase.from('settings').upsert({ key: 'store_info', value: info });
+        if (error) throw new Error(error.message);
+        setStoreInfo(info);
       },
       addProduct: async (p) => {
         const { error } = await supabase.from('products').insert([mapProductToDB(p)]);

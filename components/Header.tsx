@@ -5,7 +5,7 @@ import { useStore } from '../context/StoreContext';
 import { Link, useLocation } from 'react-router-dom';
 
 const Header: React.FC = () => {
-  const { cart, isAdmin, user, signOut, searchQuery, setSearchQuery, openCart } = useStore();
+  const { cart, isAdmin, user, signOut, searchQuery, setSearchQuery, openCart, storeInfo } = useStore();
   const location = useLocation();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -15,24 +15,27 @@ const Header: React.FC = () => {
       <div className="bg-[#00a651] py-4 px-4 md:px-8">
         <div className="container mx-auto flex items-center justify-between gap-4">
           {/* Logo */}
-          <Link 
+          <Link
             to="/"
-            className="flex items-center gap-2 text-2xl font-bold text-white cursor-pointer" 
+            className="flex items-center gap-2 cursor-pointer"
           >
-            <div className="flex items-center gap-1">
-               <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <ShoppingCart size={20} className="text-white" />
-               </div>
-               <span className="tracking-tight">SMart</span>
+            <div className="flex items-center">
+              {storeInfo.logo_url ? (
+                <img src={storeInfo.logo_url} alt={storeInfo.name} className="h-16 w-auto object-contain" />
+              ) : (
+                <div className="w-14 h-14 bg-white/20 rounded-lg flex items-center justify-center">
+                  <ShoppingCart size={28} className="text-white" />
+                </div>
+              )}
             </div>
           </Link>
 
           {/* Search Bar */}
           <div className="flex-1 max-w-2xl relative">
             <div className="flex w-full bg-white rounded-md overflow-hidden shadow-sm">
-              <input 
-                type="text" 
-                placeholder="Type Your Products..." 
+              <input
+                type="text"
+                placeholder="Type Your Products..."
                 className="w-full px-4 py-2.5 outline-none text-gray-600 text-sm"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -50,12 +53,12 @@ const Header: React.FC = () => {
               <Phone size={28} />
               <div className="flex flex-col">
                 <span className="text-[10px] opacity-90 leading-tight">Order inquiry</span>
-                <span className="font-bold text-sm">0123456789</span>
+                <span className="font-bold text-sm">{storeInfo.phone}</span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={openCart}
                 className="relative p-2 hover:bg-white/10 rounded-full transition-colors group"
               >
@@ -66,15 +69,15 @@ const Header: React.FC = () => {
                   </span>
                 )}
               </button>
-              
+
               {user ? (
                 <div className="flex items-center gap-2">
-                   <Link to="/my-account" className="p-2 hover:bg-white/10 rounded-full transition-colors" title="My Account">
-                     <User size={24} />
-                   </Link>
-                   <button onClick={signOut} className="p-2 hover:bg-white/10 rounded-full transition-colors" title="Sign Out">
-                     <LogOut size={24} />
-                   </button>
+                  <Link to="/my-account" className="p-2 hover:bg-white/10 rounded-full transition-colors" title="My Account">
+                    <User size={24} />
+                  </Link>
+                  <button onClick={signOut} className="p-2 hover:bg-white/10 rounded-full transition-colors" title="Sign Out">
+                    <LogOut size={24} />
+                  </button>
                 </div>
               ) : (
                 <Link to="/login" className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors">
@@ -95,27 +98,27 @@ const Header: React.FC = () => {
             <ChevronDown size={16} />
           </button>
           <nav className="flex gap-6 text-sm font-medium text-gray-600">
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               className={`${location.pathname === '/' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors`}
             >
               Home
             </Link>
-            <Link 
-              to="/products" 
+            <Link
+              to="/products"
               className={`${location.pathname === '/products' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors`}
             >
               Products
             </Link>
-            <Link 
-              to="/my-account" 
+            <Link
+              to="/my-account"
               className={`${location.pathname === '/my-account' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors`}
             >
               My Account
             </Link>
             {isAdmin && (
-              <Link 
-                to="/admin" 
+              <Link
+                to="/admin"
                 className={`${location.pathname.startsWith('/admin') ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors font-bold`}
               >
                 Dashboard
