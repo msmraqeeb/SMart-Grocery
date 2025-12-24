@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
-import { 
-  Package, ShoppingBag, Plus, Trash2, X, ShieldCheck, Pencil, 
-  Ticket, Eye, Truck, RefreshCw, Layers, Zap, Users as UsersIcon, 
-  Globe, PlusCircle, Image as ImageIcon, Save, AlertTriangle, 
+import {
+  Package, ShoppingBag, Plus, Trash2, X, ShieldCheck, Pencil,
+  Ticket, Eye, Truck, RefreshCw, Layers, Zap, Users as UsersIcon,
+  Globe, PlusCircle, Image as ImageIcon, Save, AlertTriangle,
   ChevronDown, MessageSquare, Star, ChevronRight, Minus,
   Settings as SettingsIcon, Search, Edit3, Check, Database, Copy
 } from 'lucide-react';
@@ -13,11 +13,11 @@ import RichTextEditor from '../components/RichTextEditor';
 import { DISTRICT_AREA_DATA } from '../constants';
 
 const Admin: React.FC = () => {
-  const { 
+  const {
     products, orders, coupons, categories, attributes, users, brands, shippingSettings, reviews,
-    addProduct, updateProduct, deleteProduct, 
+    addProduct, updateProduct, deleteProduct,
     addCategory, updateCategory, deleteCategory,
-    addCoupon, updateCoupon, deleteCoupon, 
+    addCoupon, updateCoupon, deleteCoupon,
     addAttribute, updateAttribute, deleteAttribute,
     updateOrderStatus, addBrand, updateBrand, deleteBrand, updateUserRole,
     updateShippingSettings, refreshAllData, updateOrder, deleteReview, replyToReview
@@ -35,7 +35,7 @@ const Admin: React.FC = () => {
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [editingOrderData, setEditingOrderData] = useState<Order | null>(null);
-  
+
   // Product Selector for Order Editing
   const [orderProductSearch, setOrderProductSearch] = useState('');
   const [showProductPicker, setShowProductPicker] = useState(false);
@@ -44,14 +44,14 @@ const Admin: React.FC = () => {
   const [replyText, setReplyText] = useState('');
 
   // Form States
-  const [prodForm, setProdForm] = useState({ 
-    name: '', basePrice: '', salePrice: '', category: '', description: '', shortDescription: '', images: [] as string[], 
+  const [prodForm, setProdForm] = useState({
+    name: '', basePrice: '', salePrice: '', category: '', description: '', shortDescription: '', images: [] as string[],
     unit: '', sku: '', brand: '', isFeatured: false, variants: [] as Variant[], tempAttributes: [] as { name: string, options: string[] }[]
   });
 
   const [catForm, setCatForm] = useState({ name: '', parentId: '' as string | null, image: '' });
   const [brandForm, setBrandForm] = useState({ name: '', logo_url: '' });
-  
+
   // Global Attributes Form State
   const [attrForm, setAttrForm] = useState({ name: '' });
   const [attrValuesInput, setAttrValuesInput] = useState('');
@@ -60,7 +60,7 @@ const Admin: React.FC = () => {
     code: '', discountType: 'Fixed', discountValue: 0, minimumSpend: 0, expiryDate: '', status: 'Active', autoApply: false
   });
   const [shipForm, setShipForm] = useState<ShippingSettings>(shippingSettings);
-  
+
   const [showAttrForm, setShowAttrForm] = useState(false);
   const [draftAttr, setDraftAttr] = useState({ name: '', options: [] as string[], currentOption: '' });
 
@@ -168,19 +168,24 @@ BEGIN
 END $$;
 
 -- 3. APPLY BULLETPROOF ADMIN POLICIES
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS text AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+
 CREATE POLICY "Admins manage products" ON public.products FOR ALL TO authenticated
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
-WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
+USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
+WITH CHECK ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 CREATE POLICY "Public read products" ON public.products FOR SELECT USING (true);
 
 CREATE POLICY "Admins manage categories" ON public.categories FOR ALL TO authenticated
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
-WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
+USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
+WITH CHECK ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 CREATE POLICY "Public read categories" ON public.categories FOR SELECT USING (true);
 
 CREATE POLICY "Admins manage orders" ON public.orders FOR ALL TO authenticated
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
-WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
+USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
+WITH CHECK ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 CREATE POLICY "Users can view own orders" ON public.orders FOR SELECT TO authenticated
 USING ( auth.uid() = user_id );
 CREATE POLICY "Anyone can insert orders" ON public.orders FOR INSERT WITH CHECK (true);
@@ -197,8 +202,8 @@ CREATE TABLE IF NOT EXISTS public.brands (
 );
 ALTER TABLE public.brands ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins manage brands" ON public.brands FOR ALL TO authenticated
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
-WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
+USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
+WITH CHECK ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 CREATE POLICY "Public read brands" ON public.brands FOR SELECT USING (true);
 
 CREATE TABLE IF NOT EXISTS public.attributes (
@@ -209,8 +214,8 @@ CREATE TABLE IF NOT EXISTS public.attributes (
 );
 ALTER TABLE public.attributes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins manage attributes" ON public.attributes FOR ALL TO authenticated
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
-WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
+USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
+WITH CHECK ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 CREATE POLICY "Public read attributes" ON public.attributes FOR SELECT USING (true);
 
 CREATE TABLE IF NOT EXISTS public.coupons (
@@ -226,8 +231,8 @@ CREATE TABLE IF NOT EXISTS public.coupons (
 );
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins manage coupons" ON public.coupons FOR ALL TO authenticated
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
-WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
+USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
+WITH CHECK ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 CREATE POLICY "Public read coupons" ON public.coupons FOR SELECT USING (true);
 
 CREATE TABLE IF NOT EXISTS public.reviews (
@@ -242,8 +247,8 @@ CREATE TABLE IF NOT EXISTS public.reviews (
 );
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins manage reviews" ON public.reviews FOR ALL TO authenticated
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
-WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
+USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
+WITH CHECK ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 CREATE POLICY "Public read reviews" ON public.reviews FOR SELECT USING (true);
 CREATE POLICY "Users can insert reviews" ON public.reviews FOR INSERT WITH CHECK (true);
 
@@ -254,11 +259,12 @@ CREATE TABLE IF NOT EXISTS public.settings (
 );
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins manage settings" ON public.settings FOR ALL TO authenticated
-USING ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
-WITH CHECK ( (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
+USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' )
+WITH CHECK ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 CREATE POLICY "Public read settings" ON public.settings FOR SELECT USING (true);
 
 CREATE POLICY "Users manage own profile" ON public.profiles FOR ALL USING (auth.uid() = id);
+CREATE POLICY "Admins view all profiles" ON public.profiles FOR SELECT USING ( public.get_my_role() = 'admin' OR (auth.jwt() ->> 'email') = 'msmraqeeb@gmail.com' );
 
 UPDATE public.profiles SET role = 'admin' WHERE email = 'msmraqeeb@gmail.com';
 
@@ -282,10 +288,10 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();`;
 
-  useEffect(() => { 
+  useEffect(() => {
     if (replyingTo) {
       const review = reviews.find(r => r.id === replyingTo);
-      setReplyText(review?.reply || ''); 
+      setReplyText(review?.reply || '');
     }
   }, [replyingTo, reviews]);
 
@@ -364,32 +370,32 @@ CREATE TRIGGER on_auth_user_created
   const generateVariants = () => {
     const selectedAttrs = prodForm.tempAttributes.filter(a => a.options.length > 0);
     if (selectedAttrs.length === 0) {
-        alert("Add some attributes first!");
-        return;
+      alert("Add some attributes first!");
+      return;
     }
-    
+
     const cartesian = (...args: any[][]) => args.reduce((a, b) => a.flatMap(d => b.map(e => [d, e].flat())));
-    const combinations = selectedAttrs.length === 1 
-      ? selectedAttrs[0].options.map(opt => [opt]) 
+    const combinations = selectedAttrs.length === 1
+      ? selectedAttrs[0].options.map(opt => [opt])
       : cartesian(...selectedAttrs.map(a => a.options));
 
     const pBase = parseFloat(String(prodForm.basePrice)) || 0;
     const pSale = parseFloat(String(prodForm.salePrice)) || 0;
     const isDiscounted = pSale > 0 && pSale < pBase;
-    
+
     setProdForm(prev => ({
       ...prev,
       variants: combinations.map((combo: string[], idx: number) => {
         const attrValues: Record<string, string> = {};
         selectedAttrs.forEach((attr, i) => { attrValues[attr.name] = combo[i]; });
-        return { 
-          id: Math.random().toString(36).substr(2, 9), 
-          attributeValues: attrValues, 
-          price: isDiscounted ? pSale : pBase, 
+        return {
+          id: Math.random().toString(36).substr(2, 9),
+          attributeValues: attrValues,
+          price: isDiscounted ? pSale : pBase,
           originalPrice: isDiscounted ? pBase : undefined,
-          sku: `${prodForm.sku || 'PROD'}-${idx}`, 
-          stock: 100, 
-          image: prodForm.images[0] || '' 
+          sku: `${prodForm.sku || 'PROD'}-${idx}`,
+          stock: 100,
+          image: prodForm.images[0] || ''
         };
       })
     }));
@@ -399,7 +405,7 @@ CREATE TRIGGER on_auth_user_created
     e.preventDefault();
     const pBase = parseFloat(String(prodForm.basePrice)) || 0;
     const pSale = parseFloat(String(prodForm.salePrice)) || 0;
-    
+
     let finalPrice = pBase;
     let finalOriginal = undefined;
     if (pSale > 0 && pSale < pBase) {
@@ -408,18 +414,18 @@ CREATE TRIGGER on_auth_user_created
     }
 
     const data: Omit<Product, 'id'> = {
-      name: prodForm.name, 
-      price: finalPrice, 
+      name: prodForm.name,
+      price: finalPrice,
       originalPrice: finalOriginal,
-      category: prodForm.category, 
-      description: prodForm.description, 
+      category: prodForm.category,
+      description: prodForm.description,
       shortDescription: prodForm.shortDescription,
-      images: prodForm.images, 
-      unit: prodForm.unit, 
-      sku: prodForm.sku, 
-      brand: prodForm.brand, 
+      images: prodForm.images,
+      unit: prodForm.unit,
+      sku: prodForm.sku,
+      brand: prodForm.brand,
       isFeatured: prodForm.isFeatured,
-      variants: prodForm.variants, 
+      variants: prodForm.variants,
       slug: prodForm.name.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '')
     };
 
@@ -446,20 +452,20 @@ CREATE TRIGGER on_auth_user_created
       });
     }
 
-    setProdForm({ 
-      name: p.name, 
-      basePrice: (hasSale ? p.originalPrice : p.price)?.toString() || '0', 
+    setProdForm({
+      name: p.name,
+      basePrice: (hasSale ? p.originalPrice : p.price)?.toString() || '0',
       salePrice: (hasSale ? p.price.toString() : ''),
-      category: p.category, 
-      description: p.description, 
-      shortDescription: p.shortDescription || '', 
-      images: p.images || [], 
-      unit: p.unit || '', 
-      sku: p.sku || '', 
-      brand: p.brand || '', 
-      isFeatured: p.isFeatured || false, 
+      category: p.category,
+      description: p.description,
+      shortDescription: p.shortDescription || '',
+      images: p.images || [],
+      unit: p.unit || '',
+      sku: p.sku || '',
+      brand: p.brand || '',
+      isFeatured: p.isFeatured || false,
       variants: p.variants || [],
-      tempAttributes: reconstructedAttrs 
+      tempAttributes: reconstructedAttrs
     });
     setEditingItem({ type: 'product', data: p });
     setIsAdding(null);
@@ -520,10 +526,10 @@ CREATE TRIGGER on_auth_user_created
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyingTo) return;
-    try { 
-      await replyToReview(replyingTo, replyText); 
-      setReplyingTo(null); 
-      setReplyText(''); 
+    try {
+      await replyToReview(replyingTo, replyText);
+      setReplyingTo(null);
+      setReplyText('');
     } catch (err: any) { alert(err.message); }
   };
 
@@ -583,7 +589,7 @@ CREATE TRIGGER on_auth_user_created
   const addProductToOrder = (product: Product, variant?: Variant) => {
     if (!editingOrderData) return;
     const variantId = variant?.id;
-    const existingIdx = editingOrderData.items.findIndex(item => 
+    const existingIdx = editingOrderData.items.findIndex(item =>
       item.id === product.id && item.selectedVariantId === variantId
     );
     if (existingIdx > -1) {
@@ -615,14 +621,14 @@ CREATE TRIGGER on_auth_user_created
 
   const orderSearchFilteredProducts = useMemo(() => {
     if (!orderProductSearch.trim()) return [];
-    return products.filter(p => 
-      p.name.toLowerCase().includes(orderProductSearch.toLowerCase()) || 
+    return products.filter(p =>
+      p.name.toLowerCase().includes(orderProductSearch.toLowerCase()) ||
       p.category.toLowerCase().includes(orderProductSearch.toLowerCase())
     ).slice(0, 5);
   }, [products, orderProductSearch]);
 
   const getOrderStatusColor = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'Delivered': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
       case 'Cancelled': return 'bg-red-50 text-red-600 border-red-100';
       case 'Processing': return 'bg-blue-50 text-blue-600 border-blue-100';
@@ -689,14 +695,14 @@ CREATE TRIGGER on_auth_user_created
                             </td>
                             <td className="px-6 py-5 text-slate-400 font-medium text-sm">{p.category}</td>
                             <td className="px-6 py-5">
-                               <div className="flex flex-col">
-                                 <span className="text-xs font-bold text-gray-400 uppercase tracking-tighter">MRP: {mrp?.toFixed(2)}</span>
-                                 {sale && <span className="text-sm font-black text-[#00a651]">Sale: {sale.toFixed(2)}</span>}
-                               </div>
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold text-gray-400 uppercase tracking-tighter">MRP: {mrp?.toFixed(2)}</span>
+                                {sale && <span className="text-sm font-black text-[#00a651]">Sale: {sale.toFixed(2)}</span>}
+                              </div>
                             </td>
                             <td className="px-8 py-5 text-right flex justify-end gap-2">
-                              <button onClick={() => startEditProduct(p)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-blue-500 shadow-sm"><Pencil size={18}/></button>
-                              <button onClick={() => deleteProduct(p.id)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-red-500 shadow-sm"><Trash2 size={18}/></button>
+                              <button onClick={() => startEditProduct(p)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-blue-500 shadow-sm"><Pencil size={18} /></button>
+                              <button onClick={() => deleteProduct(p.id)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-red-500 shadow-sm"><Trash2 size={18} /></button>
                             </td>
                           </tr>
                         );
@@ -709,7 +715,7 @@ CREATE TRIGGER on_auth_user_created
               <div className="max-w-5xl mx-auto space-y-8 pb-20">
                 <div className="flex items-center justify-between">
                   <button onClick={closeForms} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-bold text-sm uppercase tracking-widest transition-colors"><ChevronRight size={20} className="rotate-180" /> Back</button>
-                  <button onClick={handleProductSubmit} className="bg-[#00a651] text-white px-10 py-3.5 rounded-xl font-black uppercase text-xs shadow-lg hover:bg-[#008c44] flex items-center gap-2"><Save size={18}/> Save Product</button>
+                  <button onClick={handleProductSubmit} className="bg-[#00a651] text-white px-10 py-3.5 rounded-xl font-black uppercase text-xs shadow-lg hover:bg-[#008c44] flex items-center gap-2"><Save size={18} /> Save Product</button>
                 </div>
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10 space-y-8">
                   <div className="space-y-4">
@@ -725,19 +731,19 @@ CREATE TRIGGER on_auth_user_created
                       <PlusCircle size={32} className="text-[#00a651] mb-2" />
                       <p className="text-[#00a651] font-black text-lg">Click to select product images</p>
                     </div>
-                    <div className="flex flex-wrap gap-4">{prodForm.images.map((img, idx) => (<div key={idx} className="relative w-24 h-24 border rounded-xl overflow-hidden p-2"><img src={img} className="w-full h-full object-contain"/><button onClick={() => setProdForm(p => ({...p, images: p.images.filter((_, i) => i !== idx)}))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"><X size={10}/></button></div>))}</div>
+                    <div className="flex flex-wrap gap-4">{prodForm.images.map((img, idx) => (<div key={idx} className="relative w-24 h-24 border rounded-xl overflow-hidden p-2"><img src={img} className="w-full h-full object-contain" /><button onClick={() => setProdForm(p => ({ ...p, images: p.images.filter((_, i) => i !== idx) }))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"><X size={10} /></button></div>))}</div>
                   </div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Name</label><input required value={prodForm.name} onChange={e => setProdForm({...prodForm, name: e.target.value})} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-base font-bold outline-none focus:ring-2 focus:ring-[#00a651]" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Name</label><input required value={prodForm.name} onChange={e => setProdForm({ ...prodForm, name: e.target.value })} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-base font-bold outline-none focus:ring-2 focus:ring-[#00a651]" /></div>
                   <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Regular M.R.P (৳)</label><input required type="number" value={prodForm.basePrice} onChange={e => setProdForm({...prodForm, basePrice: e.target.value})} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-sm font-bold" placeholder="Base Retail Price" /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sale Price (৳) - Optional</label><input type="number" value={prodForm.salePrice} onChange={e => setProdForm({...prodForm, salePrice: e.target.value})} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-sm font-bold text-emerald-600" placeholder="Selling Price" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Regular M.R.P (৳)</label><input required type="number" value={prodForm.basePrice} onChange={e => setProdForm({ ...prodForm, basePrice: e.target.value })} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-sm font-bold" placeholder="Base Retail Price" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sale Price (৳) - Optional</label><input type="number" value={prodForm.salePrice} onChange={e => setProdForm({ ...prodForm, salePrice: e.target.value })} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-sm font-bold text-emerald-600" placeholder="Selling Price" /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Category</label><select required value={prodForm.category} onChange={e => setProdForm({...prodForm, category: e.target.value})} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-sm font-bold appearance-none"><option value="">Select Category</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Brand</label><select value={prodForm.brand} onChange={e => setProdForm({...prodForm, brand: e.target.value})} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-sm font-bold appearance-none"><option value="">No Brand</option>{brands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}</select></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Category</label><select required value={prodForm.category} onChange={e => setProdForm({ ...prodForm, category: e.target.value })} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-sm font-bold appearance-none"><option value="">Select Category</option>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Brand</label><select value={prodForm.brand} onChange={e => setProdForm({ ...prodForm, brand: e.target.value })} className="w-full bg-[#f9fdfb] border border-[#d1e7dd] rounded-xl px-6 py-4 text-sm font-bold appearance-none"><option value="">No Brand</option>{brands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}</select></div>
                   </div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Short Description</label><RichTextEditor value={prodForm.shortDescription} onChange={val => setProdForm({...prodForm, shortDescription: val})} label="Brief Overview" height="150px" /></div>
-                  <div className="space-y-2 pt-10"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Description</label><RichTextEditor value={prodForm.description} onChange={val => setProdForm({...prodForm, description: val})} label="Long Product Content" height="300px" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Short Description</label><RichTextEditor value={prodForm.shortDescription} onChange={val => setProdForm({ ...prodForm, shortDescription: val })} label="Brief Overview" height="150px" /></div>
+                  <div className="space-y-2 pt-10"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Description</label><RichTextEditor value={prodForm.description} onChange={val => setProdForm({ ...prodForm, description: val })} label="Long Product Content" height="300px" /></div>
 
                   <div className="space-y-6 pt-10 border-t border-gray-100">
                     <div className="space-y-1">
@@ -752,12 +758,12 @@ CREATE TRIGGER on_auth_user_created
                             {attr.options.map((opt, i) => (<span key={i} className="bg-white border border-emerald-200 px-2 py-0.5 rounded-lg text-[10px] font-bold text-emerald-700">{opt}</span>))}
                           </div>
                         </div>
-                        <button type="button" onClick={() => removeTempAttribute(idx)} className="text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
+                        <button type="button" onClick={() => removeTempAttribute(idx)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
                       </div>
                     ))}
                     {showAttrForm ? (
                       <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm space-y-6 relative animate-in zoom-in-95 duration-200">
-                        <button onClick={() => setShowAttrForm(false)} className="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors"><X size={20}/></button>
+                        <button onClick={() => setShowAttrForm(false)} className="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors"><X size={20} /></button>
                         <div className="space-y-2">
                           <label className="text-[13px] font-medium text-gray-600">Use Global Attribute (Optional)</label>
                           <div className="relative">
@@ -765,22 +771,22 @@ CREATE TRIGGER on_auth_user_created
                               <option value="">Select a global attribute...</option>
                               {attributes.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" size={18}/>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" size={18} />
                           </div>
                         </div>
                         <div className="flex flex-col md:flex-row gap-6">
-                           <div className="flex-1 space-y-2">
-                             <label className="text-[13px] font-medium text-gray-600">Attribute Name</label>
-                             <input placeholder="e.g. Color" value={draftAttr.name} onChange={(e) => setDraftAttr(p => ({...p, name: e.target.value}))} className="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm font-medium outline-none focus:ring-1 focus:ring-emerald-500" />
-                           </div>
-                           <div className="flex-[2] space-y-2">
-                             <label className="text-[13px] font-medium text-gray-600">Options</label>
-                             <div className="flex gap-2">
-                               <input placeholder="e.g. Red" value={draftAttr.currentOption} onChange={(e) => setDraftAttr(prev => ({ ...prev, currentOption: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())} className="flex-1 border border-gray-200 rounded-xl px-4 py-3.5 text-sm font-medium outline-none focus:ring-1 focus:ring-emerald-500" />
-                               <button type="button" onClick={handleAddOption} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-bold text-sm hover:bg-[#008c44] transition-all active:scale-95">Add</button>
-                             </div>
-                             <p className="text-[12px] text-emerald-600/70 font-medium">Enter an option and click Add or press Enter.</p>
-                           </div>
+                          <div className="flex-1 space-y-2">
+                            <label className="text-[13px] font-medium text-gray-600">Attribute Name</label>
+                            <input placeholder="e.g. Color" value={draftAttr.name} onChange={(e) => setDraftAttr(p => ({ ...p, name: e.target.value }))} className="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm font-medium outline-none focus:ring-1 focus:ring-emerald-500" />
+                          </div>
+                          <div className="flex-[2] space-y-2">
+                            <label className="text-[13px] font-medium text-gray-600">Options</label>
+                            <div className="flex gap-2">
+                              <input placeholder="e.g. Red" value={draftAttr.currentOption} onChange={(e) => setDraftAttr(prev => ({ ...prev, currentOption: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())} className="flex-1 border border-gray-200 rounded-xl px-4 py-3.5 text-sm font-medium outline-none focus:ring-1 focus:ring-emerald-500" />
+                              <button type="button" onClick={handleAddOption} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-bold text-sm hover:bg-[#008c44] transition-all active:scale-95">Add</button>
+                            </div>
+                            <p className="text-[12px] text-emerald-600/70 font-medium">Enter an option and click Add or press Enter.</p>
+                          </div>
                         </div>
                         {draftAttr.options.length > 0 && (
                           <div className="pt-4 border-t flex flex-col gap-4">
@@ -788,7 +794,7 @@ CREATE TRIGGER on_auth_user_created
                               {draftAttr.options.map((o, i) => (
                                 <span key={i} className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-100 text-xs font-bold shadow-sm">
                                   {o}
-                                  <X size={12} className="cursor-pointer hover:text-red-500" onClick={() => setDraftAttr(p => ({...p, options: p.options.filter((_, idx) => idx !== i)}))}/>
+                                  <X size={12} className="cursor-pointer hover:text-red-500" onClick={() => setDraftAttr(p => ({ ...p, options: p.options.filter((_, idx) => idx !== i) }))} />
                                 </span>
                               ))}
                             </div>
@@ -804,14 +810,14 @@ CREATE TRIGGER on_auth_user_created
                     <button type="button" onClick={generateVariants} className="w-full bg-slate-800 text-white px-6 py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2">Generate Variants Table</button>
                     {prodForm.variants.length > 0 && (
                       <div className="space-y-3">
-                         {prodForm.variants.map((v, vIdx) => (
-                           <div key={v.id} className="grid grid-cols-12 gap-4 p-4 bg-gray-50 rounded-2xl items-center">
-                             <div className="col-span-3 font-black text-xs text-[#004d40]">{Object.values(v.attributeValues).join(' / ')}</div>
-                             <div className="col-span-3"><input type="number" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold" value={v.originalPrice || v.price} onChange={e => { const vs = [...prodForm.variants]; vs[vIdx].originalPrice = parseFloat(e.target.value); setProdForm({...prodForm, variants: vs}); }} placeholder="MRP" /></div>
-                             <div className="col-span-3"><input type="number" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-emerald-600" value={v.price} onChange={e => { const vs = [...prodForm.variants]; vs[vIdx].price = parseFloat(e.target.value); setProdForm({...prodForm, variants: vs}); }} placeholder="Selling Price" /></div>
-                             <div className="col-span-3"><input className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold" value={v.stock} onChange={e => { const vs = [...prodForm.variants]; vs[vIdx].stock = parseInt(e.target.value); setProdForm({...prodForm, variants: vs}); }} placeholder="Stock" /></div>
-                           </div>
-                         ))}
+                        {prodForm.variants.map((v, vIdx) => (
+                          <div key={v.id} className="grid grid-cols-12 gap-4 p-4 bg-gray-50 rounded-2xl items-center">
+                            <div className="col-span-3 font-black text-xs text-[#004d40]">{Object.values(v.attributeValues).join(' / ')}</div>
+                            <div className="col-span-3"><input type="number" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold" value={v.originalPrice || v.price} onChange={e => { const vs = [...prodForm.variants]; vs[vIdx].originalPrice = parseFloat(e.target.value); setProdForm({ ...prodForm, variants: vs }); }} placeholder="MRP" /></div>
+                            <div className="col-span-3"><input type="number" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-emerald-600" value={v.price} onChange={e => { const vs = [...prodForm.variants]; vs[vIdx].price = parseFloat(e.target.value); setProdForm({ ...prodForm, variants: vs }); }} placeholder="Selling Price" /></div>
+                            <div className="col-span-3"><input className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold" value={v.stock} onChange={e => { const vs = [...prodForm.variants]; vs[vIdx].stock = parseInt(e.target.value); setProdForm({ ...prodForm, variants: vs }); }} placeholder="Stock" /></div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -826,24 +832,24 @@ CREATE TRIGGER on_auth_user_created
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
               <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Global Attributes</h2><p className="text-slate-400 text-sm">Define global variant options like Size, Color, etc.</p></div>
-              <button onClick={() => { setIsAdding('attribute'); setAttrForm({name: ''}); setAttrValuesInput(''); }} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl"><Plus size={18} /> Add Attribute</button>
+              <button onClick={() => { setIsAdding('attribute'); setAttrForm({ name: '' }); setAttrValuesInput(''); }} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl"><Plus size={18} /> Add Attribute</button>
             </div>
-            
+
             {(isAdding === 'attribute' || editingItem?.type === 'attribute') && (
               <form onSubmit={handleAttributeSubmit} className="bg-white rounded-2xl border border-emerald-100 p-10 shadow-xl space-y-10">
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <label className="text-[12px] font-black text-gray-400 uppercase tracking-widest ml-1">Attribute Name</label>
-                    <input required value={attrForm.name} onChange={e => setAttrForm({...attrForm, name: e.target.value})} className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-black" placeholder="e.g. Size" />
+                    <input required value={attrForm.name} onChange={e => setAttrForm({ ...attrForm, name: e.target.value })} className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-black" placeholder="e.g. Size" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[12px] font-black text-gray-400 uppercase tracking-widest ml-1">VALUES (COMMA SEPARATED)</label>
-                    <input 
-                      required 
-                      value={attrValuesInput} 
-                      onChange={e => setAttrValuesInput(e.target.value)} 
-                      className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-black" 
-                      placeholder="e.g. 50ml, 100ml" 
+                    <input
+                      required
+                      value={attrValuesInput}
+                      onChange={e => setAttrValuesInput(e.target.value)}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-black"
+                      placeholder="e.g. 50ml, 100ml"
                     />
                   </div>
                 </div>
@@ -853,15 +859,15 @@ CREATE TRIGGER on_auth_user_created
                 </div>
               </form>
             )}
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {attributes.map(attr => (
                 <div key={attr.id} className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4 group hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-center">
                     <h3 className="font-black text-gray-800 uppercase tracking-widest text-xs">{attr.name}</h3>
                     <div className="flex gap-2">
-                      <button onClick={() => { setEditingItem({ type: 'attribute', data: attr }); setAttrForm({ name: attr.name }); setAttrValuesInput(attr.values.map(v => v.value).join(', ')); }} className="text-gray-400 hover:text-blue-500"><Pencil size={16}/></button>
-                      <button onClick={() => deleteAttribute(attr.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
+                      <button onClick={() => { setEditingItem({ type: 'attribute', data: attr }); setAttrForm({ name: attr.name }); setAttrValuesInput(attr.values.map(v => v.value).join(', ')); }} className="text-gray-400 hover:text-blue-500"><Pencil size={16} /></button>
+                      <button onClick={() => deleteAttribute(attr.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -883,8 +889,8 @@ CREATE TRIGGER on_auth_user_created
             {(isAdding === 'category' || editingItem?.type === 'category') && (
               <form onSubmit={handleCategorySubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl animate-in slide-in-from-top-4 duration-500 space-y-6">
                 <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Category Name</label><input required value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold outline-none" /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Parent Category</label><select value={catForm.parentId || ''} onChange={e => setCatForm({...catForm, parentId: e.target.value || null})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold"><option value="">None (Top Level)</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Category Name</label><input required value={catForm.name} onChange={e => setCatForm({ ...catForm, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold outline-none" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Parent Category</label><select value={catForm.parentId || ''} onChange={e => setCatForm({ ...catForm, parentId: e.target.value || null })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold"><option value="">None (Top Level)</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                 </div>
                 <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px] shadow-lg transition-all hover:bg-emerald-700">Save Category</button></div>
               </form>
@@ -900,8 +906,8 @@ CREATE TRIGGER on_auth_user_created
                       <td className="px-8 py-5"><div className="flex items-center gap-3" style={{ marginLeft: `${c.level * 24}px` }}>{c.level > 0 && <ChevronRight size={14} className="text-slate-300" />}<span className={`font-bold text-slate-700 ${c.level === 0 ? 'text-base' : 'text-sm'}`}>{c.name}</span></div></td>
                       <td className="px-6 py-5 text-slate-400 font-medium text-xs">{c.parentId ? categories.find(cat => cat.id === c.parentId)?.name : 'Top Level'}</td>
                       <td className="px-8 py-5 text-right flex justify-end gap-2">
-                        <button onClick={() => { setEditingItem({ type: 'category', data: c }); setCatForm({ name: c.name, parentId: c.parentId || null, image: c.image }); }} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-blue-500 shadow-sm"><Pencil size={18}/></button>
-                        <button onClick={() => deleteCategory(c.id)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-red-500 shadow-sm"><Trash2 size={18}/></button>
+                        <button onClick={() => { setEditingItem({ type: 'category', data: c }); setCatForm({ name: c.name, parentId: c.parentId || null, image: c.image }); }} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-blue-500 shadow-sm"><Pencil size={18} /></button>
+                        <button onClick={() => deleteCategory(c.id)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-red-500 shadow-sm"><Trash2 size={18} /></button>
                       </td>
                     </tr>
                   ))}
@@ -921,10 +927,10 @@ CREATE TRIGGER on_auth_user_created
             {(isAdding === 'brand' || editingItem?.type === 'brand') && (
               <form onSubmit={handleBrandSubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl space-y-6">
                 <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Brand Name</label><input required value={brandForm.name} onChange={e => setBrandForm({...brandForm, name: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Brand Name</label><input required value={brandForm.name} onChange={e => setBrandForm({ ...brandForm, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Logo URL (Optional)</label>
-                    <input value={brandForm.logo_url} onChange={e => setBrandForm({...brandForm, logo_url: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" />
+                    <input value={brandForm.logo_url} onChange={e => setBrandForm({ ...brandForm, logo_url: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" />
                   </div>
                 </div>
                 <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px]">Save Brand</button></div>
@@ -938,8 +944,8 @@ CREATE TRIGGER on_auth_user_created
                     <span className="font-bold text-gray-700">{brand.name}</span>
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditingItem({ type: 'brand', data: brand }); setBrandForm({ name: brand.name, logo_url: brand.logo_url || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg"><Pencil size={16}/></button>
-                    <button onClick={() => deleteBrand(brand.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={16}/></button>
+                    <button onClick={() => { setEditingItem({ type: 'brand', data: brand }); setBrandForm({ name: brand.name, logo_url: brand.logo_url || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg"><Pencil size={16} /></button>
+                    <button onClick={() => deleteBrand(brand.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={16} /></button>
                   </div>
                 </div>
               ))}
@@ -969,9 +975,9 @@ CREATE TRIGGER on_auth_user_created
                         <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getOrderStatusColor(order.status)}`}>{order.status}</span>
                       </td>
                       <td className="px-8 py-5 text-right flex justify-end gap-2">
-                        <button onClick={() => { setViewingOrder(order); setIsEditingOrder(false); }} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-emerald-500 shadow-sm"><Eye size={18}/></button>
-                        <select 
-                          value={order.status} 
+                        <button onClick={() => { setViewingOrder(order); setIsEditingOrder(false); }} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-emerald-500 shadow-sm"><Eye size={18} /></button>
+                        <select
+                          value={order.status}
                           onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
                           className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none"
                         >
@@ -991,11 +997,11 @@ CREATE TRIGGER on_auth_user_created
                       <h3 className="text-2xl font-black text-gray-800">Order Details <span className="text-emerald-500">#{viewingOrder.id}</span></h3>
                       {!isEditingOrder && (
                         <button onClick={startEditingOrder} className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-100 transition-colors">
-                          <Edit3 size={12}/> Edit Order
+                          <Edit3 size={12} /> Edit Order
                         </button>
                       )}
                     </div>
-                    <button onClick={closeForms} className="text-gray-300 hover:text-red-500"><X size={32}/></button>
+                    <button onClick={closeForms} className="text-gray-300 hover:text-red-500"><X size={32} /></button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     <div className="space-y-4">
@@ -1005,13 +1011,13 @@ CREATE TRIGGER on_auth_user_created
                           <>
                             <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Customer Name</label><input value={editingOrderData?.customerName} onChange={e => updateCustomerInfo('customerName', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-1 focus:ring-emerald-500" /></div>
                             <div className="grid grid-cols-2 gap-4">
-                               <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label><input value={editingOrderData?.customerEmail} onChange={e => updateCustomerInfo('customerEmail', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
-                               <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone</label><input value={editingOrderData?.customerPhone} onChange={e => updateCustomerInfo('customerPhone', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
+                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label><input value={editingOrderData?.customerEmail} onChange={e => updateCustomerInfo('customerEmail', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
+                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone</label><input value={editingOrderData?.customerPhone} onChange={e => updateCustomerInfo('customerPhone', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
                             </div>
                             <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Street Address</label><input value={editingOrderData?.customerAddress} onChange={e => updateCustomerInfo('customerAddress', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
                             <div className="grid grid-cols-2 gap-4">
-                               <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">District</label><select value={editingOrderData?.customerDistrict} onChange={e => updateCustomerInfo('customerDistrict', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none appearance-none"><option value="">Select District</option>{Object.keys(DISTRICT_AREA_DATA).map(d => <option key={d} value={d}>{d}</option>)}</select></div>
-                               <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Area</label><select value={editingOrderData?.customerArea} onChange={e => updateCustomerInfo('customerArea', e.target.value)} disabled={!editingOrderData?.customerDistrict} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none appearance-none disabled:opacity-50"><option value="">Select Area</option>{editingOrderData?.customerDistrict && DISTRICT_AREA_DATA[editingOrderData.customerDistrict].map(a => <option key={a} value={a}>{a}</option>)}</select></div>
+                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">District</label><select value={editingOrderData?.customerDistrict} onChange={e => updateCustomerInfo('customerDistrict', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none appearance-none"><option value="">Select District</option>{Object.keys(DISTRICT_AREA_DATA).map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Area</label><select value={editingOrderData?.customerArea} onChange={e => updateCustomerInfo('customerArea', e.target.value)} disabled={!editingOrderData?.customerDistrict} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none appearance-none disabled:opacity-50"><option value="">Select Area</option>{editingOrderData?.customerDistrict && DISTRICT_AREA_DATA[editingOrderData.customerDistrict].map(a => <option key={a} value={a}>{a}</option>)}</select></div>
                             </div>
                           </>
                         ) : (
@@ -1029,16 +1035,16 @@ CREATE TRIGGER on_auth_user_created
                       <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-3 font-bold text-sm">
                         <div className="flex justify-between"><span>Subtotal</span><span className="text-gray-800 font-black">৳{(isEditingOrder ? editingOrderData?.subtotal : viewingOrder.subtotal)?.toFixed(2)}</span></div>
                         <div className="flex justify-between items-center"><span>Shipping Fee</span>{isEditingOrder ? (<div className="flex items-center gap-2"><span className="text-xs text-gray-400">৳</span><input type="number" className="w-24 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-right text-sm font-black text-[#1a3a34] focus:ring-1 focus:ring-emerald-500 outline-none" value={editingOrderData?.shippingCost} onChange={(e) => changeOrderShipping(parseFloat(e.target.value) || 0)} /></div>) : (<span className="text-gray-800 font-black">৳{viewingOrder.shippingCost.toFixed(2)}</span>)}</div>
-                        <div className="flex justify-between text-emerald-600"><span className="flex items-center gap-1.5">{viewingOrder.coupon_code && <Ticket size={12}/>} Discount {viewingOrder.coupon_code && `(${viewingOrder.coupon_code})`}</span><span className="font-black">-৳{(isEditingOrder ? editingOrderData?.discount : viewingOrder.discount)?.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-emerald-600"><span className="flex items-center gap-1.5">{viewingOrder.coupon_code && <Ticket size={12} />} Discount {viewingOrder.coupon_code && `(${viewingOrder.coupon_code})`}</span><span className="font-black">-৳{(isEditingOrder ? editingOrderData?.discount : viewingOrder.discount)?.toFixed(2)}</span></div>
                         <div className="flex justify-between text-lg font-black pt-3 border-t border-gray-200"><span>Total</span><span className="text-emerald-600 text-xl font-black">৳{(isEditingOrder ? editingOrderData?.total : viewingOrder.total)?.toFixed(2)}</span></div>
                       </div>
                     </div>
                   </div>
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center"><h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><Package size={16} className="text-emerald-500"/> Items Purchased</h4>{isEditingOrder && (<div className="relative"><button onClick={() => setShowProductPicker(!showProductPicker)} className="flex items-center gap-2 bg-[#004d40] text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"><Plus size={14}/> Add Item</button>{showProductPicker && (<div className="absolute right-0 mt-3 w-96 bg-white border border-gray-200 rounded-[2rem] shadow-2xl p-6 z-[110] animate-in slide-in-from-top-2 duration-300"><div className="relative mb-5"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18}/><input autoFocus placeholder="Search products..." className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white focus:border-emerald-500 transition-all" value={orderProductSearch} onChange={(e) => setOrderProductSearch(e.target.value)} /></div><div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar pr-1">{orderSearchFilteredProducts.map(p => (<div key={p.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 transition-all"><div className="flex justify-between items-center mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-white rounded-xl p-1 border border-gray-100 flex items-center justify-center"><img src={p.images?.[0] || ''} className="max-h-full max-w-full object-contain" /></div><span className="text-xs font-black text-gray-800 leading-tight">{p.name}</span></div><span className="text-[11px] font-black text-[#00a651] bg-white px-2 py-1 rounded-lg border border-emerald-50 shadow-sm">৳{p.price}</span></div>{p.variants && p.variants.length > 0 ? (<div className="flex flex-wrap gap-2">{p.variants.map(v => (<button key={v.id} onClick={() => addProductToOrder(p, v)} className="text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl border border-emerald-100 hover:bg-[#00a651] hover:text-white hover:border-[#00a651] transition-all">{Object.values(v.attributeValues).join(' / ')}</button>))}</div>) : (<button onClick={() => addProductToOrder(p)} className="w-full text-[9px] font-black uppercase tracking-widest bg-[#004d40] text-white py-2 rounded-xl hover:bg-black transition-all shadow-md active:scale-95">Add Piece</button>)}</div>))}{orderSearchFilteredProducts.length === 0 && orderProductSearch && (<div className="text-center py-10"><Search size={32} className="mx-auto text-gray-200 mb-2" /><p className="text-xs font-bold text-gray-400 italic">No products matched "{orderProductSearch}"</p></div>)}</div></div>)}</div>)}</div>
-                    <div className="space-y-3">{(isEditingOrder ? editingOrderData?.items : viewingOrder.items)?.map((item, idx) => (<div key={idx} className="flex justify-between items-center p-5 bg-gray-50/50 rounded-[2rem] border border-gray-50 group hover:bg-emerald-50/30 transition-all duration-300"><div className="flex items-center gap-5"><div className="w-14 h-14 bg-white rounded-2xl p-2 flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden group-hover:scale-105 transition-transform"><img src={item.selectedVariantImage || item.images?.[0] || ''} className="max-h-full max-w-full object-contain" /></div><div><p className="font-black text-gray-800 text-[15px] leading-tight mb-1">{item.name}</p>{item.selectedVariantName && (<p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest inline-block bg-white px-2 py-0.5 rounded-lg border border-emerald-50">{item.selectedVariantName}</p>)}</div></div><div className="flex items-center gap-10"><div className="flex items-center gap-5">{isEditingOrder ? (<div className="flex items-center bg-white border border-gray-200 rounded-2xl p-1 shadow-sm ring-4 ring-gray-100"><button onClick={() => changeOrderItemQty(idx, -1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"><Minus size={14} /></button><span className="w-8 text-center text-sm font-black text-[#1a3a34]">{item.quantity}</span><button onClick={() => changeOrderItemQty(idx, 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-emerald-500 transition-colors"><Plus size={14} /></button></div>) : (<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Qty: <span className="text-gray-700 text-sm ml-1">{item.quantity}</span></p>)}</div><div className="text-right min-w-[120px]"><div className="text-base font-black text-[#1a3a34]">৳{(item.price * item.quantity).toFixed(2)}</div><div className="text-[10px] font-bold text-gray-400">৳{item.price.toFixed(2)} / unit</div></div>{isEditingOrder && (<button onClick={() => removeOrderItem(idx)} className="w-10 h-10 flex items-center justify-center bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 border border-gray-100 rounded-2xl transition-all shadow-sm active:scale-90"><Trash2 size={18}/></button>)}</div></div>))}</div>
+                    <div className="flex justify-between items-center"><h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><Package size={16} className="text-emerald-500" /> Items Purchased</h4>{isEditingOrder && (<div className="relative"><button onClick={() => setShowProductPicker(!showProductPicker)} className="flex items-center gap-2 bg-[#004d40] text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"><Plus size={14} /> Add Item</button>{showProductPicker && (<div className="absolute right-0 mt-3 w-96 bg-white border border-gray-200 rounded-[2rem] shadow-2xl p-6 z-[110] animate-in slide-in-from-top-2 duration-300"><div className="relative mb-5"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} /><input autoFocus placeholder="Search products..." className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white focus:border-emerald-500 transition-all" value={orderProductSearch} onChange={(e) => setOrderProductSearch(e.target.value)} /></div><div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar pr-1">{orderSearchFilteredProducts.map(p => (<div key={p.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 transition-all"><div className="flex justify-between items-center mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-white rounded-xl p-1 border border-gray-100 flex items-center justify-center"><img src={p.images?.[0] || ''} className="max-h-full max-w-full object-contain" /></div><span className="text-xs font-black text-gray-800 leading-tight">{p.name}</span></div><span className="text-[11px] font-black text-[#00a651] bg-white px-2 py-1 rounded-lg border border-emerald-50 shadow-sm">৳{p.price}</span></div>{p.variants && p.variants.length > 0 ? (<div className="flex flex-wrap gap-2">{p.variants.map(v => (<button key={v.id} onClick={() => addProductToOrder(p, v)} className="text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl border border-emerald-100 hover:bg-[#00a651] hover:text-white hover:border-[#00a651] transition-all">{Object.values(v.attributeValues).join(' / ')}</button>))}</div>) : (<button onClick={() => addProductToOrder(p)} className="w-full text-[9px] font-black uppercase tracking-widest bg-[#004d40] text-white py-2 rounded-xl hover:bg-black transition-all shadow-md active:scale-95">Add Piece</button>)}</div>))}{orderSearchFilteredProducts.length === 0 && orderProductSearch && (<div className="text-center py-10"><Search size={32} className="mx-auto text-gray-200 mb-2" /><p className="text-xs font-bold text-gray-400 italic">No products matched "{orderProductSearch}"</p></div>)}</div></div>)}</div>)}</div>
+                    <div className="space-y-3">{(isEditingOrder ? editingOrderData?.items : viewingOrder.items)?.map((item, idx) => (<div key={idx} className="flex justify-between items-center p-5 bg-gray-50/50 rounded-[2rem] border border-gray-50 group hover:bg-emerald-50/30 transition-all duration-300"><div className="flex items-center gap-5"><div className="w-14 h-14 bg-white rounded-2xl p-2 flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden group-hover:scale-105 transition-transform"><img src={item.selectedVariantImage || item.images?.[0] || ''} className="max-h-full max-w-full object-contain" /></div><div><p className="font-black text-gray-800 text-[15px] leading-tight mb-1">{item.name}</p>{item.selectedVariantName && (<p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest inline-block bg-white px-2 py-0.5 rounded-lg border border-emerald-50">{item.selectedVariantName}</p>)}</div></div><div className="flex items-center gap-10"><div className="flex items-center gap-5">{isEditingOrder ? (<div className="flex items-center bg-white border border-gray-200 rounded-2xl p-1 shadow-sm ring-4 ring-gray-100"><button onClick={() => changeOrderItemQty(idx, -1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"><Minus size={14} /></button><span className="w-8 text-center text-sm font-black text-[#1a3a34]">{item.quantity}</span><button onClick={() => changeOrderItemQty(idx, 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-emerald-500 transition-colors"><Plus size={14} /></button></div>) : (<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Qty: <span className="text-gray-700 text-sm ml-1">{item.quantity}</span></p>)}</div><div className="text-right min-w-[120px]"><div className="text-base font-black text-[#1a3a34]">৳{(item.price * item.quantity).toFixed(2)}</div><div className="text-[10px] font-bold text-gray-400">৳{item.price.toFixed(2)} / unit</div></div>{isEditingOrder && (<button onClick={() => removeOrderItem(idx)} className="w-10 h-10 flex items-center justify-center bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 border border-gray-100 rounded-2xl transition-all shadow-sm active:scale-90"><Trash2 size={18} /></button>)}</div></div>))}</div>
                   </div>
-                  {isEditingOrder && (<div className="pt-12 flex gap-5 border-t border-gray-50"><button onClick={closeForms} className="flex-1 bg-gray-50 text-gray-400 font-black py-5 rounded-[1.2rem] uppercase text-xs tracking-widest hover:bg-gray-100 transition-all active:scale-95">Discard Changes</button><button onClick={saveOrderEdits} className="flex-[2] bg-[#00a651] text-white font-black py-5 rounded-[1.2rem] uppercase text-xs tracking-widest shadow-xl shadow-emerald-100 hover:bg-[#008c44] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"><Check size={20}/> Update Order</button></div>)}
+                  {isEditingOrder && (<div className="pt-12 flex gap-5 border-t border-gray-50"><button onClick={closeForms} className="flex-1 bg-gray-50 text-gray-400 font-black py-5 rounded-[1.2rem] uppercase text-xs tracking-widest hover:bg-gray-100 transition-all active:scale-95">Discard Changes</button><button onClick={saveOrderEdits} className="flex-[2] bg-[#00a651] text-white font-black py-5 rounded-[1.2rem] uppercase text-xs tracking-widest shadow-xl shadow-emerald-100 hover:bg-[#008c44] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"><Check size={20} /> Update Order</button></div>)}
                 </div>
               </div>
             )}
@@ -1055,12 +1061,12 @@ CREATE TRIGGER on_auth_user_created
             {(isAdding === 'coupon' || editingItem?.type === 'coupon') && (
               <form onSubmit={handleCouponSubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Coupon Code</label><input required value={couponForm.code} onChange={e => setCouponForm({...couponForm, code: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Discount Type</label><select value={couponForm.discountType} onChange={e => setCouponForm({...couponForm, discountType: e.target.value as any})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold"><option value="Fixed">Fixed Amount</option><option value="Percentage">Percentage %</option></select></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Value</label><input required type="number" value={couponForm.discountValue} onChange={e => setCouponForm({...couponForm, discountValue: parseFloat(e.target.value)})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Min Spend</label><input required type="number" value={couponForm.minimumSpend} onChange={e => setCouponForm({...couponForm, minimumSpend: parseFloat(e.target.value)})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Expiry Date</label><input required type="date" value={couponForm.expiryDate} onChange={e => setCouponForm({...couponForm, expiryDate: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2 flex items-center pt-6 ml-4"><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={couponForm.autoApply} onChange={e => setCouponForm({...couponForm, autoApply: e.target.checked})} className="w-5 h-5 accent-emerald-500" /><span className="text-xs font-black text-gray-500 uppercase">Auto-Apply</span></label></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Coupon Code</label><input required value={couponForm.code} onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Discount Type</label><select value={couponForm.discountType} onChange={e => setCouponForm({ ...couponForm, discountType: e.target.value as any })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold"><option value="Fixed">Fixed Amount</option><option value="Percentage">Percentage %</option></select></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Value</label><input required type="number" value={couponForm.discountValue} onChange={e => setCouponForm({ ...couponForm, discountValue: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Min Spend</label><input required type="number" value={couponForm.minimumSpend} onChange={e => setCouponForm({ ...couponForm, minimumSpend: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Expiry Date</label><input required type="date" value={couponForm.expiryDate} onChange={e => setCouponForm({ ...couponForm, expiryDate: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                  <div className="space-y-2 flex items-center pt-6 ml-4"><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={couponForm.autoApply} onChange={e => setCouponForm({ ...couponForm, autoApply: e.target.checked })} className="w-5 h-5 accent-emerald-500" /><span className="text-xs font-black text-gray-500 uppercase">Auto-Apply</span></label></div>
                 </div>
                 <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px]">Save Coupon</button></div>
               </form>
@@ -1070,9 +1076,9 @@ CREATE TRIGGER on_auth_user_created
                 <div key={cp.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 relative group overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-12 -mt-12 group-hover:bg-emerald-500/10 transition-colors"></div>
                   <div className="relative space-y-4">
-                    <div className="flex justify-between items-center"><span className="bg-emerald-500 text-white px-4 py-1.5 rounded-full text-xs font-black tracking-widest">{cp.code}</span><div className="flex gap-2"><button onClick={() => { setEditingItem({ type: 'coupon', data: cp }); setCouponForm(cp); }} className="text-gray-300 hover:text-blue-500"><Pencil size={16}/></button><button onClick={() => deleteCoupon(cp.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={16}/></button></div></div>
+                    <div className="flex justify-between items-center"><span className="bg-emerald-500 text-white px-4 py-1.5 rounded-full text-xs font-black tracking-widest">{cp.code}</span><div className="flex gap-2"><button onClick={() => { setEditingItem({ type: 'coupon', data: cp }); setCouponForm(cp); }} className="text-gray-300 hover:text-blue-500"><Pencil size={16} /></button><button onClick={() => deleteCoupon(cp.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={16} /></button></div></div>
                     <div className="space-y-1"><p className="font-black text-2xl text-gray-800">{cp.discountType === 'Fixed' ? `৳${cp.discountValue}` : `${cp.discountValue}%`} OFF</p><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Min Spend: ৳{cp.minimumSpend}</p></div>
-                    <div className="pt-4 border-t flex items-center gap-2 text-xs font-bold text-gray-400"><RefreshCw size={14}/> Expires: {new Date(cp.expiryDate).toLocaleDateString()}</div>
+                    <div className="pt-4 border-t flex items-center gap-2 text-xs font-bold text-gray-400"><RefreshCw size={14} /> Expires: {new Date(cp.expiryDate).toLocaleDateString()}</div>
                   </div>
                 </div>
               ))}
@@ -1089,7 +1095,7 @@ CREATE TRIGGER on_auth_user_created
                 <div key={review.id} className="bg-white rounded-[2rem] border border-gray-100 p-8 space-y-6 group">
                   <div className="flex justify-between items-start">
                     <div className="flex gap-4"><div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white font-black text-xl">{review.authorName.charAt(0)}</div><div><h4 className="font-black text-gray-800">{review.authorName}</h4><span className="text-[10px] font-black text-gray-400 uppercase">{review.productName} • {new Date(review.createdAt).toLocaleDateString()}</span></div></div>
-                    <div className="flex items-center gap-4"><div className="flex text-yellow-400 gap-0.5">{[1,2,3,4,5].map(i => <Star key={i} size={14} fill={i <= review.rating ? "currentColor" : "none"} className={i <= review.rating ? "" : "text-gray-200"} />)}</div><button onClick={() => deleteReview(review.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18}/></button></div>
+                    <div className="flex items-center gap-4"><div className="flex text-yellow-400 gap-0.5">{[1, 2, 3, 4, 5].map(i => <Star key={i} size={14} fill={i <= review.rating ? "currentColor" : "none"} className={i <= review.rating ? "" : "text-gray-200"} />)}</div><button onClick={() => deleteReview(review.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18} /></button></div>
                   </div>
                   <p className="text-gray-600 text-[15px] leading-relaxed italic">"{review.comment}"</p>
                   {review.reply ? (
@@ -1103,7 +1109,7 @@ CREATE TRIGGER on_auth_user_created
             {replyingTo && (
               <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4">
                 <form onSubmit={handleReplySubmit} className="bg-white rounded-[2rem] w-full max-w-lg p-10 shadow-2xl space-y-6 animate-in zoom-in-95">
-                  <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800 uppercase tracking-widest">Merchant Reply</h3><button type="button" onClick={() => setReplyingTo(null)} className="text-gray-300 hover:text-red-500"><X size={24}/></button></div>
+                  <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800 uppercase tracking-widest">Merchant Reply</h3><button type="button" onClick={() => setReplyingTo(null)} className="text-gray-300 hover:text-red-500"><X size={24} /></button></div>
                   <textarea value={replyText} onChange={e => setReplyText(e.target.value)} required placeholder="Write your response here..." className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-6 h-48 text-sm font-medium outline-none focus:border-emerald-500 transition-all" />
                   <div className="flex gap-4"><button type="button" onClick={() => setReplyingTo(null)} className="flex-1 bg-gray-50 text-gray-400 font-black py-4 rounded-xl text-xs uppercase">Cancel</button><button type="submit" className="flex-1 bg-emerald-500 text-white font-black py-4 rounded-xl text-xs uppercase tracking-widest shadow-lg">Submit Reply</button></div>
                 </form>
@@ -1144,8 +1150,8 @@ CREATE TRIGGER on_auth_user_created
               <div className="space-y-8">
                 <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center gap-3"><Truck className="text-emerald-500" /> Delivery Fees Configuration</h3>
                 <div className="grid grid-cols-2 gap-10">
-                   <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Inside Dhaka (৳)</label><input type="number" value={shipForm.insideDhaka} onChange={e => setShipForm({...shipForm, insideDhaka: parseFloat(e.target.value)})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
-                   <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Outside Dhaka (৳)</label><input type="number" value={shipForm.outsideDhaka} onChange={e => setShipForm({...shipForm, outsideDhaka: parseFloat(e.target.value)})} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
+                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Inside Dhaka (৳)</label><input type="number" value={shipForm.insideDhaka} onChange={e => setShipForm({ ...shipForm, insideDhaka: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
+                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Outside Dhaka (৳)</label><input type="number" value={shipForm.outsideDhaka} onChange={e => setShipForm({ ...shipForm, outsideDhaka: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
                 </div>
               </div>
               <div className="pt-6 border-t flex justify-end"><button onClick={() => updateShippingSettings(shipForm)} className="bg-emerald-600 text-white font-black px-12 py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-50 hover:bg-emerald-700 transition-all">Save Changes</button></div>

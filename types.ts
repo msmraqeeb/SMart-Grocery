@@ -64,6 +64,7 @@ export interface Coupon {
   status: 'Active' | 'Inactive';
   autoApply: boolean;
   createdAt: string;
+  isAutoApplied?: boolean;
 }
 
 export interface CartItem extends Product {
