@@ -126,7 +126,7 @@ export interface Address {
 }
 
 export type ViewMode = 'home' | 'products' | 'admin';
-export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users';
+export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users' | 'reports';
 
 export interface StoreInfo {
   name: string;

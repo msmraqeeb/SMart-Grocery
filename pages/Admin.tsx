@@ -7,7 +7,7 @@ import {
   Ticket, Eye, Truck, RefreshCw, Layers, Zap, Users as UsersIcon,
   Globe, PlusCircle, Image as ImageIcon, Save, AlertTriangle,
   ChevronDown, MessageSquare, Star, ChevronRight, Minus,
-  Settings as SettingsIcon, Search, Edit3, Check, Database, Copy, Printer
+  Settings as SettingsIcon, Search, Edit3, Check, Database, Copy, Printer, Calendar, BarChart3
 } from 'lucide-react';
 import { Product, Category, Order, Variant, ShippingSettings, Brand, Coupon, CartItem, StoreInfo } from '../types';
 import RichTextEditor from '../components/RichTextEditor';
@@ -72,6 +72,88 @@ const Admin: React.FC = () => {
   useEffect(() => {
     setStoreForm(currentStoreInfo);
   }, [currentStoreInfo]);
+
+  // Report States
+  const [reportStartDate, setReportStartDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [reportEndDate, setReportEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  // Report Calculations
+  const reportData = useMemo(() => {
+    const start = new Date(reportStartDate);
+    const end = new Date(reportEndDate);
+    end.setHours(23, 59, 59, 999);
+
+    const filteredOrders = orders.filter(o => {
+      const d = new Date(o.date);
+      return d >= start && d <= end && o.status !== 'Cancelled';
+    });
+
+    const filteredUsers = users.filter(u => {
+      const d = new Date(u.created_at);
+      return d >= start && d <= end;
+    });
+
+    // 1. Sales by Date
+    const salesByDate: Record<string, number> = {};
+    filteredOrders.forEach(o => {
+      const dateKey = new Date(o.date).toLocaleDateString();
+      salesByDate[dateKey] = (salesByDate[dateKey] || 0) + o.total;
+    });
+
+    // 2. Sales by Product
+    const salesByProduct: Record<string, { name: string, quantity: number, revenue: number }> = {};
+    filteredOrders.forEach(o => {
+      o.items.forEach(item => {
+        if (!salesByProduct[item.id]) {
+          salesByProduct[item.id] = { name: item.name, quantity: 0, revenue: 0 };
+        }
+        salesByProduct[item.id].quantity += item.quantity;
+        salesByProduct[item.id].revenue += item.price * item.quantity;
+      });
+    });
+
+    // 3. Sales by Category
+    const salesByCategory: Record<string, number> = {};
+    filteredOrders.forEach(o => {
+      o.items.forEach(item => {
+        const cat = item.category || 'Uncategorized';
+        salesByCategory[cat] = (salesByCategory[cat] || 0) + (item.price * item.quantity);
+      });
+    });
+
+    // 4. Coupons by Date
+    const couponsByDate: Record<string, number> = {};
+    filteredOrders.forEach(o => {
+      if (o.coupon_code) {
+        const dateKey = new Date(o.date).toLocaleDateString();
+        couponsByDate[dateKey] = (couponsByDate[dateKey] || 0) + 1;
+      }
+    });
+
+    // 5. Customer Report (Sales by Customer)
+    const customerStats: Record<string, { name: string, email: string, orders: number, spent: number }> = {};
+    filteredOrders.forEach(o => {
+      const email = o.customerEmail || o.customerPhone || 'Unknown';
+      if (!customerStats[email]) {
+        customerStats[email] = { name: o.customerName, email: o.customerEmail || o.customerPhone || 'N/A', orders: 0, spent: 0 };
+      }
+      customerStats[email].orders += 1;
+      customerStats[email].spent += o.total;
+    });
+
+    return {
+      salesByDate,
+      salesByProduct: Object.values(salesByProduct).sort((a, b) => b.revenue - a.revenue),
+      salesByCategory,
+      couponsByDate,
+      customerReport: Object.values(customerStats).sort((a, b) => b.spent - a.spent),
+      newCustomersCount: filteredUsers.length
+    };
+  }, [orders, coupons, users, reportStartDate, reportEndDate]);
 
   const [showAttrForm, setShowAttrForm] = useState(false);
   const [draftAttr, setDraftAttr] = useState({ name: '', options: [] as string[], currentOption: '' });
@@ -795,9 +877,10 @@ CREATE TRIGGER on_auth_user_created
             { id: 'orders', icon: ShoppingBag, label: 'Orders' },
             { id: 'coupons', icon: Ticket, label: 'Coupons' },
             { id: 'reviews', icon: MessageSquare, label: 'Reviews' },
-            { id: 'users', icon: UsersIcon, label: 'Users' },
+            { id: 'users', icon: UsersIcon, label: 'Users & Roles' },
             { id: 'settings', icon: SettingsIcon, label: 'System' },
             { id: 'database', icon: Database, label: 'Database' },
+            { id: 'reports', icon: BarChart3, label: 'Reports' },
           ].map(item => (
             <button key={item.id} onClick={() => { setAdminTabState(item.id); closeForms(); }} className={`flex items-center gap-4 px-6 py-3.5 rounded-2xl transition-all font-bold text-sm ${adminTab === item.id ? 'bg-emerald-50 text-[#004d40] shadow-lg' : 'text-slate-300 hover:bg-white/10'}`}>
               <item.icon size={18} /> {item.label}
@@ -807,9 +890,178 @@ CREATE TRIGGER on_auth_user_created
       </aside>
 
       <main className="flex-1 p-10 overflow-x-hidden">
+        {adminTab === 'reports' && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <div>
+                <h2 className="text-2xl font-black text-gray-800 tracking-tight">Business Reports</h2>
+                <p className="text-gray-500 font-medium">Insights and analytics for your store</p>
+              </div>
+              <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-200">
+                <div className="flex flex-col px-2">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">From</label>
+                  <input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className="bg-transparent font-bold text-gray-800 outline-none text-sm" />
+                </div>
+                <div className="w-px h-8 bg-gray-300"></div>
+                <div className="flex flex-col px-2">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">To</label>
+                  <input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="bg-transparent font-bold text-gray-800 outline-none text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Summary Cards */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 className="text-gray-500 font-bold uppercase text-xs tracking-widest mb-2">Total Revenue</h3>
+                <p className="text-3xl font-black text-emerald-600">৳{Object.values(reportData.salesByDate).reduce((a, b) => a + b, 0).toFixed(2)}</p>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 className="text-gray-500 font-bold uppercase text-xs tracking-widest mb-2">New Customers</h3>
+                <p className="text-3xl font-black text-blue-600">{reportData.newCustomersCount}</p>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 className="text-gray-500 font-bold uppercase text-xs tracking-widest mb-2">Coupon Orders</h3>
+                <p className="text-3xl font-black text-purple-600">{Object.values(reportData.couponsByDate).reduce((a, b) => a + b, 0)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              {/* Sales by Date */}
+              <div className="bg-white p-8 rounded-[30px] border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><Calendar size={20} className="text-emerald-500" /> Sales by Date</h3>
+                <div className="overflow-y-auto max-h-80 custom-scrollbar">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="text-xs font-black text-gray-400 uppercase tracking-widest sticky top-0 bg-white">
+                      <tr><th className="py-3 border-b-2">Date</th><th className="py-3 border-b-2 text-right">Revenue</th></tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(reportData.salesByDate).length === 0 ? (
+                        <tr><td colSpan={2} className="text-center py-8 text-gray-400 italic">No sales in this period</td></tr>
+                      ) : (
+                        Object.entries(reportData.salesByDate).map(([date, total]) => (
+                          <tr key={date} className="border-b border-gray-50 hover:bg-gray-50/50">
+                            <td className="py-3 font-medium text-gray-600">{date}</td>
+                            <td className="py-3 font-bold text-gray-800 text-right">৳{total.toFixed(2)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Sales by Category */}
+              <div className="bg-white p-8 rounded-[30px] border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><Layers size={20} className="text-blue-500" /> Sales by Category</h3>
+                <div className="space-y-4">
+                  {Object.entries(reportData.salesByCategory).length === 0 ? (
+                    <p className="text-center py-8 text-gray-400 italic">No data available</p>
+                  ) : (
+                    Object.entries(reportData.salesByCategory)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([cat, total]) => {
+                        const maxVal = Math.max(...Object.values(reportData.salesByCategory));
+                        const percent = (total / maxVal) * 100;
+                        return (
+                          <div key={cat} className="group">
+                            <div className="flex justify-between text-sm font-bold text-gray-600 mb-1">
+                              <span>{cat}</span>
+                              <span>৳{total.toFixed(2)}</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${percent}%` }}></div>
+                            </div>
+                          </div>
+                        )
+                      })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              {/* Sales by Product */}
+              <div className="bg-white p-8 rounded-[30px] border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><Package size={20} className="text-purple-500" /> Top Products</h3>
+                <div className="overflow-y-auto max-h-80 custom-scrollbar">
+                  <table className="w-full text-left">
+                    <thead className="text-xs font-black text-gray-400 uppercase tracking-widest sticky top-0 bg-white">
+                      <tr><th className="py-3 border-b-2">Product</th><th className="py-3 border-b-2 text-right">Qty</th><th className="py-3 border-b-2 text-right">Revenue</th></tr>
+                    </thead>
+                    <tbody>
+                      {reportData.salesByProduct.length === 0 ? (
+                        <tr><td colSpan={3} className="text-center py-8 text-gray-400 italic">No product sales found</td></tr>
+                      ) : (
+                        reportData.salesByProduct.map((p, idx) => (
+                          <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50/50">
+                            <td className="py-3 font-medium text-gray-700 truncate max-w-[200px]">{p.name}</td>
+                            <td className="py-3 font-medium text-gray-600 text-right">{p.quantity}</td>
+                            <td className="py-3 font-bold text-gray-800 text-right">৳{p.revenue.toFixed(2)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Coupons and Customers Brief */}
+              <div className="space-y-8">
+                <div className="bg-white p-8 rounded-[30px] border border-gray-100 shadow-sm">
+                  <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><Ticket size={20} className="text-pink-500" /> Coupon Usage by Date</h3>
+                  <div className="overflow-y-auto max-h-40 custom-scrollbar">
+                    {Object.entries(reportData.couponsByDate).length === 0 ? (
+                      <p className="text-center py-4 text-gray-400 italic">No coupons used</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4">
+                        {Object.entries(reportData.couponsByDate).map(([date, count]) => (
+                          <div key={date} className="bg-pink-50 p-3 rounded-xl border border-pink-100 flex justify-between items-center">
+                            <span className="text-sm font-bold text-gray-600">{date}</span>
+                            <span className="bg-white px-2 py-0.5 rounded-md text-xs font-black text-pink-600 shadow-sm">{count} Used</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-white p-8 rounded-[30px] border border-gray-100 shadow-sm">
+                  <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2"><UsersIcon size={20} className="text-orange-500" /> Customer Report</h3>
+                  <div className="overflow-y-auto max-h-80 custom-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="text-[10px] font-black text-gray-400 uppercase tracking-widest sticky top-0 bg-white">
+                        <tr>
+                          <th className="py-3 border-b text-emerald-600">Customer Name</th>
+                          <th className="py-3 border-b text-gray-500">Email</th>
+                          <th className="py-3 border-b text-center text-gray-500">Orders</th>
+                          <th className="py-3 border-b text-right text-emerald-600">Total Spent</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.customerReport.length === 0 ? (
+                          <tr><td colSpan={4} className="text-center py-8 text-gray-400 italic">No customer activity found</td></tr>
+                        ) : (
+                          reportData.customerReport.map((c, idx) => (
+                            <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                              <td className="py-3 font-bold text-gray-700">{c.name}</td>
+                              <td className="py-3 text-sm text-gray-500">{c.email}</td>
+                              <td className="py-3 font-bold text-gray-700 text-center">{c.orders}</td>
+                              <td className="py-3 font-black text-gray-800 text-right">৳{c.spent.toFixed(2)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Products Tab */}
         {adminTab === 'products' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="space-y-6 animate-in fade-in duration-500">
             {!(isAdding === 'product' || editingItem?.type === 'product') ? (
               <>
                 <div className="flex justify-between items-center">
@@ -964,390 +1216,409 @@ CREATE TRIGGER on_auth_user_created
               </div>
             )}
           </div>
-        )}
+        )
+        }
 
         {/* Global Attributes Tab - FIXED COMMA ISSUE AND REFINED UI */}
-        {adminTab === 'attributes' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center">
-              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Global Attributes</h2><p className="text-slate-400 text-sm">Define global variant options like Size, Color, etc.</p></div>
-              <button onClick={() => { setIsAdding('attribute'); setAttrForm({ name: '' }); setAttrValuesInput(''); }} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl"><Plus size={18} /> Add Attribute</button>
-            </div>
+        {
+          adminTab === 'attributes' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex justify-between items-center">
+                <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Global Attributes</h2><p className="text-slate-400 text-sm">Define global variant options like Size, Color, etc.</p></div>
+                <button onClick={() => { setIsAdding('attribute'); setAttrForm({ name: '' }); setAttrValuesInput(''); }} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl"><Plus size={18} /> Add Attribute</button>
+              </div>
 
-            {(isAdding === 'attribute' || editingItem?.type === 'attribute') && (
-              <form onSubmit={handleAttributeSubmit} className="bg-white rounded-2xl border border-emerald-100 p-10 shadow-xl space-y-10">
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[12px] font-black text-gray-400 uppercase tracking-widest ml-1">Attribute Name</label>
-                    <input required value={attrForm.name} onChange={e => setAttrForm({ ...attrForm, name: e.target.value })} className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-black" placeholder="e.g. Size" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[12px] font-black text-gray-400 uppercase tracking-widest ml-1">VALUES (COMMA SEPARATED)</label>
-                    <input
-                      required
-                      value={attrValuesInput}
-                      onChange={e => setAttrValuesInput(e.target.value)}
-                      className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-black"
-                      placeholder="e.g. 50ml, 100ml"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end items-center gap-8">
-                  <button type="button" onClick={closeForms} className="text-gray-400 hover:text-gray-600 font-black uppercase text-[13px] tracking-widest transition-colors">CANCEL</button>
-                  <button type="submit" className="bg-[#00a651] text-white px-10 py-4 rounded-xl font-black uppercase text-[13px] tracking-widest shadow-lg transition-all hover:bg-[#008c44] active:scale-95">SAVE ATTRIBUTE</button>
-                </div>
-              </form>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {attributes.map(attr => (
-                <div key={attr.id} className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4 group hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-black text-gray-800 uppercase tracking-widest text-xs">{attr.name}</h3>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setEditingItem({ type: 'attribute', data: attr }); setAttrForm({ name: attr.name }); setAttrValuesInput(attr.values.map(v => v.value).join(', ')); }} className="text-gray-400 hover:text-blue-500"><Pencil size={16} /></button>
-                      <button onClick={() => deleteAttribute(attr.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+              {(isAdding === 'attribute' || editingItem?.type === 'attribute') && (
+                <form onSubmit={handleAttributeSubmit} className="bg-white rounded-2xl border border-emerald-100 p-10 shadow-xl space-y-10">
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-black text-gray-400 uppercase tracking-widest ml-1">Attribute Name</label>
+                      <input required value={attrForm.name} onChange={e => setAttrForm({ ...attrForm, name: e.target.value })} className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-black" placeholder="e.g. Size" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-black text-gray-400 uppercase tracking-widest ml-1">VALUES (COMMA SEPARATED)</label>
+                      <input
+                        required
+                        value={attrValuesInput}
+                        onChange={e => setAttrValuesInput(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-black"
+                        placeholder="e.g. 50ml, 100ml"
+                      />
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {attr.values.map(v => (<span key={v.id} className="bg-gray-50 text-gray-500 px-3 py-1 rounded-lg text-xs font-bold border border-gray-100">{v.value}</span>))}
+                  <div className="flex justify-end items-center gap-8">
+                    <button type="button" onClick={closeForms} className="text-gray-400 hover:text-gray-600 font-black uppercase text-[13px] tracking-widest transition-colors">CANCEL</button>
+                    <button type="submit" className="bg-[#00a651] text-white px-10 py-4 rounded-xl font-black uppercase text-[13px] tracking-widest shadow-lg transition-all hover:bg-[#008c44] active:scale-95">SAVE ATTRIBUTE</button>
                   </div>
-                </div>
-              ))}
+                </form>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {attributes.map(attr => (
+                  <div key={attr.id} className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4 group hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-black text-gray-800 uppercase tracking-widest text-xs">{attr.name}</h3>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditingItem({ type: 'attribute', data: attr }); setAttrForm({ name: attr.name }); setAttrValuesInput(attr.values.map(v => v.value).join(', ')); }} className="text-gray-400 hover:text-blue-500"><Pencil size={16} /></button>
+                        <button onClick={() => deleteAttribute(attr.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {attr.values.map(v => (<span key={v.id} className="bg-gray-50 text-gray-500 px-3 py-1 rounded-lg text-xs font-bold border border-gray-100">{v.value}</span>))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         {/* Categories Tab */}
-        {adminTab === 'categories' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center">
-              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Categories</h2><p className="text-slate-400 text-sm">Organize your products catalog.</p></div>
-              <button onClick={() => setIsAdding('category')} className="bg-[#ffa319] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl hover:bg-[#e69217] transition-all"><Plus size={18} /> Add Category</button>
+        {
+          adminTab === 'categories' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex justify-between items-center">
+                <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Categories</h2><p className="text-slate-400 text-sm">Organize your products catalog.</p></div>
+                <button onClick={() => setIsAdding('category')} className="bg-[#ffa319] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl hover:bg-[#e69217] transition-all"><Plus size={18} /> Add Category</button>
+              </div>
+              {(isAdding === 'category' || editingItem?.type === 'category') && (
+                <form onSubmit={handleCategorySubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl animate-in slide-in-from-top-4 duration-500 space-y-6">
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Category Name</label><input required value={catForm.name} onChange={e => setCatForm({ ...catForm, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold outline-none" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Parent Category</label><select value={catForm.parentId || ''} onChange={e => setCatForm({ ...catForm, parentId: e.target.value || null })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold"><option value="">None (Top Level)</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  </div>
+                  <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px] shadow-lg transition-all hover:bg-emerald-700">Save Category</button></div>
+                </form>
+              )}
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b text-[10px] uppercase font-black text-slate-400 tracking-widest">
+                    <tr><th className="px-8 py-6">Category Name</th><th className="px-6 py-6">Parent</th><th className="px-8 py-6 text-right">Actions</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {hierarchicalCategories.map(c => (
+                      <tr key={c.id} className="hover:bg-slate-50/50 group transition-colors">
+                        <td className="px-8 py-5"><div className="flex items-center gap-3" style={{ marginLeft: `${c.level * 24}px` }}>{c.level > 0 && <ChevronRight size={14} className="text-slate-300" />}<span className={`font-bold text-slate-700 ${c.level === 0 ? 'text-base' : 'text-sm'}`}>{c.name}</span></div></td>
+                        <td className="px-6 py-5 text-slate-400 font-medium text-xs">{c.parentId ? categories.find(cat => cat.id === c.parentId)?.name : 'Top Level'}</td>
+                        <td className="px-8 py-5 text-right flex justify-end gap-2">
+                          <button onClick={() => { setEditingItem({ type: 'category', data: c }); setCatForm({ name: c.name, parentId: c.parentId || null, image: c.image }); }} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-blue-500 shadow-sm"><Pencil size={18} /></button>
+                          <button onClick={() => deleteCategory(c.id)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-red-500 shadow-sm"><Trash2 size={18} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            {(isAdding === 'category' || editingItem?.type === 'category') && (
-              <form onSubmit={handleCategorySubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl animate-in slide-in-from-top-4 duration-500 space-y-6">
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Category Name</label><input required value={catForm.name} onChange={e => setCatForm({ ...catForm, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold outline-none" /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Parent Category</label><select value={catForm.parentId || ''} onChange={e => setCatForm({ ...catForm, parentId: e.target.value || null })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold"><option value="">None (Top Level)</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                </div>
-                <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px] shadow-lg transition-all hover:bg-emerald-700">Save Category</button></div>
-              </form>
-            )}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b text-[10px] uppercase font-black text-slate-400 tracking-widest">
-                  <tr><th className="px-8 py-6">Category Name</th><th className="px-6 py-6">Parent</th><th className="px-8 py-6 text-right">Actions</th></tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {hierarchicalCategories.map(c => (
-                    <tr key={c.id} className="hover:bg-slate-50/50 group transition-colors">
-                      <td className="px-8 py-5"><div className="flex items-center gap-3" style={{ marginLeft: `${c.level * 24}px` }}>{c.level > 0 && <ChevronRight size={14} className="text-slate-300" />}<span className={`font-bold text-slate-700 ${c.level === 0 ? 'text-base' : 'text-sm'}`}>{c.name}</span></div></td>
-                      <td className="px-6 py-5 text-slate-400 font-medium text-xs">{c.parentId ? categories.find(cat => cat.id === c.parentId)?.name : 'Top Level'}</td>
-                      <td className="px-8 py-5 text-right flex justify-end gap-2">
-                        <button onClick={() => { setEditingItem({ type: 'category', data: c }); setCatForm({ name: c.name, parentId: c.parentId || null, image: c.image }); }} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-blue-500 shadow-sm"><Pencil size={18} /></button>
-                        <button onClick={() => deleteCategory(c.id)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-red-500 shadow-sm"><Trash2 size={18} /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+          )
+        }
 
         {/* Brands Tab */}
-        {adminTab === 'brands' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center">
-              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Brands</h2><p className="text-slate-400 text-sm">Manage product brands and logos.</p></div>
-              <button onClick={() => setIsAdding('brand')} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl"><Plus size={18} /> Add Brand</button>
+        {
+          adminTab === 'brands' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex justify-between items-center">
+                <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Brands</h2><p className="text-slate-400 text-sm">Manage product brands and logos.</p></div>
+                <button onClick={() => setIsAdding('brand')} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl"><Plus size={18} /> Add Brand</button>
+              </div>
+              {(isAdding === 'brand' || editingItem?.type === 'brand') && (
+                <form onSubmit={handleBrandSubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl space-y-6">
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Brand Name</label><input required value={brandForm.name} onChange={e => setBrandForm({ ...brandForm, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Logo URL (Optional)</label>
+                      <input value={brandForm.logo_url} onChange={e => setBrandForm({ ...brandForm, logo_url: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px]">Save Brand</button></div>
+                </form>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {brands.map(brand => (
+                  <div key={brand.id} className="bg-white p-6 rounded-2xl border border-gray-100 flex items-center justify-between group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center p-1.5 border border-gray-50 shadow-sm">{brand.logo_url ? <img src={brand.logo_url} className="max-h-full max-w-full object-contain" /> : <Globe className="text-gray-300" />}</div>
+                      <span className="font-bold text-gray-700">{brand.name}</span>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => { setEditingItem({ type: 'brand', data: brand }); setBrandForm({ name: brand.name, logo_url: brand.logo_url || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg"><Pencil size={16} /></button>
+                      <button onClick={() => deleteBrand(brand.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            {(isAdding === 'brand' || editingItem?.type === 'brand') && (
-              <form onSubmit={handleBrandSubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl space-y-6">
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Brand Name</label><input required value={brandForm.name} onChange={e => setBrandForm({ ...brandForm, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Logo URL (Optional)</label>
-                    <input value={brandForm.logo_url} onChange={e => setBrandForm({ ...brandForm, logo_url: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px]">Save Brand</button></div>
-              </form>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {brands.map(brand => (
-                <div key={brand.id} className="bg-white p-6 rounded-2xl border border-gray-100 flex items-center justify-between group hover:shadow-md transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center p-1.5 border border-gray-50 shadow-sm">{brand.logo_url ? <img src={brand.logo_url} className="max-h-full max-w-full object-contain" /> : <Globe className="text-gray-300" />}</div>
-                    <span className="font-bold text-gray-700">{brand.name}</span>
-                  </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditingItem({ type: 'brand', data: brand }); setBrandForm({ name: brand.name, logo_url: brand.logo_url || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg"><Pencil size={16} /></button>
-                    <button onClick={() => deleteBrand(brand.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={16} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          )
+        }
 
         {/* Orders Tab */}
-        {adminTab === 'orders' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Order Management</h2><p className="text-slate-400 text-sm">Process incoming orders and update tracking status.</p></div>
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b text-[10px] uppercase font-black text-slate-400 tracking-widest">
-                  <tr><th className="px-8 py-6">Order ID</th><th className="px-6 py-6">Customer</th><th className="px-6 py-6">Date</th><th className="px-6 py-6">Total</th><th className="px-6 py-6">Status</th><th className="px-8 py-6 text-right">Actions</th></tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {orders.map(order => (
-                    <tr key={order.id} className="hover:bg-slate-50/50 group transition-colors">
-                      <td className="px-8 py-5 font-black text-gray-800">#{order.id}</td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col"><span className="font-bold text-gray-700">{order.customerName}</span><span className="text-xs text-gray-400">{order.customerPhone}</span></div>
-                      </td>
-                      <td className="px-6 py-5 text-gray-400 font-bold text-sm">{new Date(order.date).toLocaleDateString()}</td>
-                      <td className="px-6 py-5 font-black text-gray-900">৳{order.total.toFixed(2)}</td>
-                      <td className="px-6 py-5">
-                        <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getOrderStatusColor(order.status)}`}>{order.status}</span>
-                      </td>
-                      <td className="px-8 py-5 text-right flex justify-end gap-2">
-                        <button onClick={() => { setViewingOrder(order); setIsEditingOrder(false); }} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-emerald-500 shadow-sm"><Eye size={18} /></button>
-                        <select
-                          value={order.status}
-                          onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
-                          className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none"
-                        >
-                          {['Pending', 'Processing', 'Delivered', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {viewingOrder && (
-              <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-                <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-10 shadow-2xl space-y-10 animate-in zoom-in-95 relative">
-                  <div className="flex justify-between items-center border-b pb-6">
-                    <div className="flex items-center gap-4">
-                      <h3 className="text-2xl font-black text-gray-800">Order Details <span className="text-emerald-500">#{viewingOrder.id}</span></h3>
-                      {!isEditingOrder && (
-                        <div className="flex gap-2">
-                          <button onClick={() => printInvoice(viewingOrder)} className="flex items-center gap-1.5 bg-slate-50 text-slate-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-100 transition-colors">
-                            <Printer size={12} /> Print Invoice
-                          </button>
-                          <button onClick={startEditingOrder} className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-100 transition-colors">
-                            <Edit3 size={12} /> Edit Order
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <button onClick={closeForms} className="text-gray-300 hover:text-red-500"><X size={32} /></button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Customer Information</h4>
-                      <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4 text-sm">
-                        {isEditingOrder ? (
-                          <>
-                            <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Customer Name</label><input value={editingOrderData?.customerName} onChange={e => updateCustomerInfo('customerName', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-1 focus:ring-emerald-500" /></div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label><input value={editingOrderData?.customerEmail} onChange={e => updateCustomerInfo('customerEmail', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
-                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone</label><input value={editingOrderData?.customerPhone} onChange={e => updateCustomerInfo('customerPhone', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
-                            </div>
-                            <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Street Address</label><input value={editingOrderData?.customerAddress} onChange={e => updateCustomerInfo('customerAddress', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">District</label><select value={editingOrderData?.customerDistrict} onChange={e => updateCustomerInfo('customerDistrict', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none appearance-none"><option value="">Select District</option>{Object.keys(DISTRICT_AREA_DATA).map(d => <option key={d} value={d}>{d}</option>)}</select></div>
-                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Area</label><select value={editingOrderData?.customerArea} onChange={e => updateCustomerInfo('customerArea', e.target.value)} disabled={!editingOrderData?.customerDistrict} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none appearance-none disabled:opacity-50"><option value="">Select Area</option>{editingOrderData?.customerDistrict && DISTRICT_AREA_DATA[editingOrderData.customerDistrict].map(a => <option key={a} value={a}>{a}</option>)}</select></div>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-black text-gray-800">{viewingOrder.customerName}</p>
-                            <p className="font-bold text-gray-500">{viewingOrder.customerEmail}</p>
-                            <p className="font-bold text-gray-500">{viewingOrder.customerPhone}</p>
-                            <p className="font-bold text-gray-500 pt-4 leading-relaxed">{viewingOrder.customerAddress}, {viewingOrder.customerArea}, {viewingOrder.customerDistrict}</p>
-                          </>
+        {
+          adminTab === 'orders' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Order Management</h2><p className="text-slate-400 text-sm">Process incoming orders and update tracking status.</p></div>
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b text-[10px] uppercase font-black text-slate-400 tracking-widest">
+                    <tr><th className="px-8 py-6">Order ID</th><th className="px-6 py-6">Customer</th><th className="px-6 py-6">Date</th><th className="px-6 py-6">Total</th><th className="px-6 py-6">Status</th><th className="px-8 py-6 text-right">Actions</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {orders.map(order => (
+                      <tr key={order.id} className="hover:bg-slate-50/50 group transition-colors">
+                        <td className="px-8 py-5 font-black text-gray-800">#{order.id}</td>
+                        <td className="px-6 py-5">
+                          <div className="flex flex-col"><span className="font-bold text-gray-700">{order.customerName}</span><span className="text-xs text-gray-400">{order.customerPhone}</span></div>
+                        </td>
+                        <td className="px-6 py-5 text-gray-400 font-bold text-sm">{new Date(order.date).toLocaleDateString()}</td>
+                        <td className="px-6 py-5 font-black text-gray-900">৳{order.total.toFixed(2)}</td>
+                        <td className="px-6 py-5">
+                          <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getOrderStatusColor(order.status)}`}>{order.status}</span>
+                        </td>
+                        <td className="px-8 py-5 text-right flex justify-end gap-2">
+                          <button onClick={() => { setViewingOrder(order); setIsEditingOrder(false); }} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-emerald-500 shadow-sm"><Eye size={18} /></button>
+                          <select
+                            value={order.status}
+                            onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
+                            className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none"
+                          >
+                            {['Pending', 'Processing', 'Delivered', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {viewingOrder && (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+                  <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-10 shadow-2xl space-y-10 animate-in zoom-in-95 relative">
+                    <div className="flex justify-between items-center border-b pb-6">
+                      <div className="flex items-center gap-4">
+                        <h3 className="text-2xl font-black text-gray-800">Order Details <span className="text-emerald-500">#{viewingOrder.id}</span></h3>
+                        {!isEditingOrder && (
+                          <div className="flex gap-2">
+                            <button onClick={() => printInvoice(viewingOrder)} className="flex items-center gap-1.5 bg-slate-50 text-slate-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-100 transition-colors">
+                              <Printer size={12} /> Print Invoice
+                            </button>
+                            <button onClick={startEditingOrder} className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-100 transition-colors">
+                              <Edit3 size={12} /> Edit Order
+                            </button>
+                          </div>
                         )}
                       </div>
+                      <button onClick={closeForms} className="text-gray-300 hover:text-red-500"><X size={32} /></button>
                     </div>
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Order Summary</h4>
-                      <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-3 font-bold text-sm">
-                        <div className="flex justify-between"><span>Subtotal</span><span className="text-gray-800 font-black">৳{(isEditingOrder ? editingOrderData?.subtotal : viewingOrder.subtotal)?.toFixed(2)}</span></div>
-                        <div className="flex justify-between items-center"><span>Shipping Fee</span>{isEditingOrder ? (<div className="flex items-center gap-2"><span className="text-xs text-gray-400">৳</span><input type="number" className="w-24 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-right text-sm font-black text-[#1a3a34] focus:ring-1 focus:ring-emerald-500 outline-none" value={editingOrderData?.shippingCost} onChange={(e) => changeOrderShipping(parseFloat(e.target.value) || 0)} /></div>) : (<span className="text-gray-800 font-black">৳{viewingOrder.shippingCost.toFixed(2)}</span>)}</div>
-                        <div className="flex justify-between text-emerald-600"><span className="flex items-center gap-1.5">{viewingOrder.coupon_code && <Ticket size={12} />} Discount {viewingOrder.coupon_code && `(${viewingOrder.coupon_code})`}</span><span className="font-black">-৳{(isEditingOrder ? editingOrderData?.discount : viewingOrder.discount)?.toFixed(2)}</span></div>
-                        <div className="flex justify-between text-lg font-black pt-3 border-t border-gray-200"><span>Total</span><span className="text-emerald-600 text-xl font-black">৳{(isEditingOrder ? editingOrderData?.total : viewingOrder.total)?.toFixed(2)}</span></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Customer Information</h4>
+                        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4 text-sm">
+                          {isEditingOrder ? (
+                            <>
+                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Customer Name</label><input value={editingOrderData?.customerName} onChange={e => updateCustomerInfo('customerName', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-1 focus:ring-emerald-500" /></div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label><input value={editingOrderData?.customerEmail} onChange={e => updateCustomerInfo('customerEmail', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone</label><input value={editingOrderData?.customerPhone} onChange={e => updateCustomerInfo('customerPhone', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
+                              </div>
+                              <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Street Address</label><input value={editingOrderData?.customerAddress} onChange={e => updateCustomerInfo('customerAddress', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none" /></div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">District</label><select value={editingOrderData?.customerDistrict} onChange={e => updateCustomerInfo('customerDistrict', e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none appearance-none"><option value="">Select District</option>{Object.keys(DISTRICT_AREA_DATA).map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Area</label><select value={editingOrderData?.customerArea} onChange={e => updateCustomerInfo('customerArea', e.target.value)} disabled={!editingOrderData?.customerDistrict} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none appearance-none disabled:opacity-50"><option value="">Select Area</option>{editingOrderData?.customerDistrict && DISTRICT_AREA_DATA[editingOrderData.customerDistrict].map(a => <option key={a} value={a}>{a}</option>)}</select></div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-black text-gray-800">{viewingOrder.customerName}</p>
+                              <p className="font-bold text-gray-500">{viewingOrder.customerEmail}</p>
+                              <p className="font-bold text-gray-500">{viewingOrder.customerPhone}</p>
+                              <p className="font-bold text-gray-500 pt-4 leading-relaxed">{viewingOrder.customerAddress}, {viewingOrder.customerArea}, {viewingOrder.customerDistrict}</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Order Summary</h4>
+                        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-3 font-bold text-sm">
+                          <div className="flex justify-between"><span>Subtotal</span><span className="text-gray-800 font-black">৳{(isEditingOrder ? editingOrderData?.subtotal : viewingOrder.subtotal)?.toFixed(2)}</span></div>
+                          <div className="flex justify-between items-center"><span>Shipping Fee</span>{isEditingOrder ? (<div className="flex items-center gap-2"><span className="text-xs text-gray-400">৳</span><input type="number" className="w-24 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-right text-sm font-black text-[#1a3a34] focus:ring-1 focus:ring-emerald-500 outline-none" value={editingOrderData?.shippingCost} onChange={(e) => changeOrderShipping(parseFloat(e.target.value) || 0)} /></div>) : (<span className="text-gray-800 font-black">৳{viewingOrder.shippingCost.toFixed(2)}</span>)}</div>
+                          <div className="flex justify-between text-emerald-600"><span className="flex items-center gap-1.5">{viewingOrder.coupon_code && <Ticket size={12} />} Discount {viewingOrder.coupon_code && `(${viewingOrder.coupon_code})`}</span><span className="font-black">-৳{(isEditingOrder ? editingOrderData?.discount : viewingOrder.discount)?.toFixed(2)}</span></div>
+                          <div className="flex justify-between text-lg font-black pt-3 border-t border-gray-200"><span>Total</span><span className="text-emerald-600 text-xl font-black">৳{(isEditingOrder ? editingOrderData?.total : viewingOrder.total)?.toFixed(2)}</span></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center"><h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><Package size={16} className="text-emerald-500" /> Items Purchased</h4>{isEditingOrder && (<div className="relative"><button onClick={() => setShowProductPicker(!showProductPicker)} className="flex items-center gap-2 bg-[#004d40] text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"><Plus size={14} /> Add Item</button>{showProductPicker && (<div className="absolute right-0 mt-3 w-96 bg-white border border-gray-200 rounded-[2rem] shadow-2xl p-6 z-[110] animate-in slide-in-from-top-2 duration-300"><div className="relative mb-5"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} /><input autoFocus placeholder="Search products..." className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white focus:border-emerald-500 transition-all" value={orderProductSearch} onChange={(e) => setOrderProductSearch(e.target.value)} /></div><div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar pr-1">{orderSearchFilteredProducts.map(p => (<div key={p.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 transition-all"><div className="flex justify-between items-center mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-white rounded-xl p-1 border border-gray-100 flex items-center justify-center"><img src={p.images?.[0] || ''} className="max-h-full max-w-full object-contain" /></div><span className="text-xs font-black text-gray-800 leading-tight">{p.name}</span></div><span className="text-[11px] font-black text-[#00a651] bg-white px-2 py-1 rounded-lg border border-emerald-50 shadow-sm">৳{p.price}</span></div>{p.variants && p.variants.length > 0 ? (<div className="flex flex-wrap gap-2">{p.variants.map(v => (<button key={v.id} onClick={() => addProductToOrder(p, v)} className="text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl border border-emerald-100 hover:bg-[#00a651] hover:text-white hover:border-[#00a651] transition-all">{Object.values(v.attributeValues).join(' / ')}</button>))}</div>) : (<button onClick={() => addProductToOrder(p)} className="w-full text-[9px] font-black uppercase tracking-widest bg-[#004d40] text-white py-2 rounded-xl hover:bg-black transition-all shadow-md active:scale-95">Add Piece</button>)}</div>))}{orderSearchFilteredProducts.length === 0 && orderProductSearch && (<div className="text-center py-10"><Search size={32} className="mx-auto text-gray-200 mb-2" /><p className="text-xs font-bold text-gray-400 italic">No products matched "{orderProductSearch}"</p></div>)}</div></div>)}</div>)}</div>
+                      <div className="space-y-3">{(isEditingOrder ? editingOrderData?.items : viewingOrder.items)?.map((item, idx) => (<div key={idx} className="flex justify-between items-center p-5 bg-gray-50/50 rounded-[2rem] border border-gray-50 group hover:bg-emerald-50/30 transition-all duration-300"><div className="flex items-center gap-5"><div className="w-14 h-14 bg-white rounded-2xl p-2 flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden group-hover:scale-105 transition-transform"><img src={item.selectedVariantImage || item.images?.[0] || ''} className="max-h-full max-w-full object-contain" /></div><div><p className="font-black text-gray-800 text-[15px] leading-tight mb-1">{item.name}</p>{item.selectedVariantName && (<p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest inline-block bg-white px-2 py-0.5 rounded-lg border border-emerald-50">{item.selectedVariantName}</p>)}</div></div><div className="flex items-center gap-10"><div className="flex items-center gap-5">{isEditingOrder ? (<div className="flex items-center bg-white border border-gray-200 rounded-2xl p-1 shadow-sm ring-4 ring-gray-100"><button onClick={() => changeOrderItemQty(idx, -1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"><Minus size={14} /></button><span className="w-8 text-center text-sm font-black text-[#1a3a34]">{item.quantity}</span><button onClick={() => changeOrderItemQty(idx, 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-emerald-500 transition-colors"><Plus size={14} /></button></div>) : (<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Qty: <span className="text-gray-700 text-sm ml-1">{item.quantity}</span></p>)}</div><div className="text-right min-w-[120px]"><div className="text-base font-black text-[#1a3a34]">৳{(item.price * item.quantity).toFixed(2)}</div><div className="text-[10px] font-bold text-gray-400">৳{item.price.toFixed(2)} / unit</div></div>{isEditingOrder && (<button onClick={() => removeOrderItem(idx)} className="w-10 h-10 flex items-center justify-center bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 border border-gray-100 rounded-2xl transition-all shadow-sm active:scale-90"><Trash2 size={18} /></button>)}</div></div>))}</div>
+                    </div>
+                    {isEditingOrder && (<div className="pt-12 flex gap-5 border-t border-gray-50"><button onClick={closeForms} className="flex-1 bg-gray-50 text-gray-400 font-black py-5 rounded-[1.2rem] uppercase text-xs tracking-widest hover:bg-gray-100 transition-all active:scale-95">Discard Changes</button><button onClick={saveOrderEdits} className="flex-[2] bg-[#00a651] text-white font-black py-5 rounded-[1.2rem] uppercase text-xs tracking-widest shadow-xl shadow-emerald-100 hover:bg-[#008c44] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"><Check size={20} /> Update Order</button></div>)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        {/* Coupons Tab */}
+        {
+          adminTab === 'coupons' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex justify-between items-center">
+                <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Promo Coupons</h2><p className="text-slate-400 text-sm">Create and manage marketing discount codes.</p></div>
+                <button onClick={() => setIsAdding('coupon')} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl"><Plus size={18} /> Add Coupon</button>
+              </div>
+              {(isAdding === 'coupon' || editingItem?.type === 'coupon') && (
+                <form onSubmit={handleCouponSubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl space-y-6">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Coupon Code</label><input required value={couponForm.code} onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Discount Type</label><select value={couponForm.discountType} onChange={e => setCouponForm({ ...couponForm, discountType: e.target.value as any })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold"><option value="Fixed">Fixed Amount</option><option value="Percentage">Percentage %</option></select></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Value</label><input required type="number" value={couponForm.discountValue} onChange={e => setCouponForm({ ...couponForm, discountValue: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Min Spend</label><input required type="number" value={couponForm.minimumSpend} onChange={e => setCouponForm({ ...couponForm, minimumSpend: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Expiry Date</label><input required type="date" value={couponForm.expiryDate} onChange={e => setCouponForm({ ...couponForm, expiryDate: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                    <div className="space-y-2 flex items-center pt-6 ml-4"><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={couponForm.autoApply} onChange={e => setCouponForm({ ...couponForm, autoApply: e.target.checked })} className="w-5 h-5 accent-emerald-500" /><span className="text-xs font-black text-gray-500 uppercase">Auto-Apply</span></label></div>
+                  </div>
+                  <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px]">Save Coupon</button></div>
+                </form>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {coupons.map(cp => (
+                  <div key={cp.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-12 -mt-12 group-hover:bg-emerald-500/10 transition-colors"></div>
+                    <div className="relative space-y-4">
+                      <div className="flex justify-between items-center"><span className="bg-emerald-500 text-white px-4 py-1.5 rounded-full text-xs font-black tracking-widest">{cp.code}</span><div className="flex gap-2"><button onClick={() => { setEditingItem({ type: 'coupon', data: cp }); setCouponForm(cp); }} className="text-gray-300 hover:text-blue-500"><Pencil size={16} /></button><button onClick={() => deleteCoupon(cp.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={16} /></button></div></div>
+                      <div className="space-y-1"><p className="font-black text-2xl text-gray-800">{cp.discountType === 'Fixed' ? `৳${cp.discountValue}` : `${cp.discountValue}%`} OFF</p><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Min Spend: ৳{cp.minimumSpend}</p></div>
+                      <div className="pt-4 border-t flex items-center gap-2 text-xs font-bold text-gray-400"><RefreshCw size={14} /> Expires: {new Date(cp.expiryDate).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        }
+
+        {/* Reviews Tab */}
+        {
+          adminTab === 'reviews' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Customer Reviews</h2><p className="text-slate-400 text-sm">Moderate and respond to customer feedback.</p></div>
+              <div className="space-y-6">
+                {reviews.map(review => (
+                  <div key={review.id} className="bg-white rounded-[2rem] border border-gray-100 p-8 space-y-6 group">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-4"><div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white font-black text-xl">{review.authorName.charAt(0)}</div><div><h4 className="font-black text-gray-800">{review.authorName}</h4><span className="text-[10px] font-black text-gray-400 uppercase">{review.productName} • {new Date(review.createdAt).toLocaleDateString()}</span></div></div>
+                      <div className="flex items-center gap-4"><div className="flex text-yellow-400 gap-0.5">{[1, 2, 3, 4, 5].map(i => <Star key={i} size={14} fill={i <= review.rating ? "currentColor" : "none"} className={i <= review.rating ? "" : "text-gray-200"} />)}</div><button onClick={() => deleteReview(review.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18} /></button></div>
+                    </div>
+                    <p className="text-gray-600 text-[15px] leading-relaxed italic">"{review.comment}"</p>
+                    {review.reply ? (
+                      <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100"><span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-2">Merchant Response</span><p className="text-gray-800 text-sm font-bold">"{review.reply}"</p><button onClick={() => setReplyingTo(review.id)} className="text-[10px] font-black text-emerald-500 uppercase mt-4 hover:underline">Edit Response</button></div>
+                    ) : (
+                      <button onClick={() => setReplyingTo(review.id)} className="bg-gray-50 hover:bg-emerald-50 text-gray-500 hover:text-emerald-600 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-gray-100 transition-all">Reply to Review</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {replyingTo && (
+                <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4">
+                  <form onSubmit={handleReplySubmit} className="bg-white rounded-[2rem] w-full max-w-lg p-10 shadow-2xl space-y-6 animate-in zoom-in-95">
+                    <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800 uppercase tracking-widest">Merchant Reply</h3><button type="button" onClick={() => setReplyingTo(null)} className="text-gray-300 hover:text-red-500"><X size={24} /></button></div>
+                    <textarea value={replyText} onChange={e => setReplyText(e.target.value)} required placeholder="Write your response here..." className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-6 h-48 text-sm font-medium outline-none focus:border-emerald-500 transition-all" />
+                    <div className="flex gap-4"><button type="button" onClick={() => setReplyingTo(null)} className="flex-1 bg-gray-50 text-gray-400 font-black py-4 rounded-xl text-xs uppercase">Cancel</button><button type="submit" className="flex-1 bg-emerald-500 text-white font-black py-4 rounded-xl text-xs uppercase tracking-widest shadow-lg">Submit Reply</button></div>
+                  </form>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        {/* Users Tab */}
+        {
+          adminTab === 'users' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Registered Users</h2><p className="text-slate-400 text-sm">Manage user accounts and permission roles.</p></div>
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b text-[10px] uppercase font-black text-slate-400 tracking-widest">
+                    <tr><th className="px-8 py-6">User</th><th className="px-6 py-6">Role</th><th className="px-6 py-6">Registered On</th><th className="px-8 py-6 text-right">Actions</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {users.map(u => (
+                      <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-8 py-5 flex items-center gap-4"><div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 font-black text-lg">{u.email.charAt(0).toUpperCase()}</div><div className="flex flex-col"><span className="font-bold text-gray-800">{u.full_name || 'Anonymous User'}</span><span className="text-xs text-gray-400">{u.email}</span></div></td>
+                        <td className="px-6 py-5"><span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${u.role === 'admin' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>{u.role}</span></td>
+                        <td className="px-6 py-5 text-gray-400 font-bold text-sm">{new Date(u.created_at).toLocaleDateString()}</td>
+                        <td className="px-8 py-5 text-right"><button onClick={() => updateUserRole(u.id, u.role === 'admin' ? 'customer' : 'admin')} className="text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:underline">{u.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        }
+
+        {/* System Settings Tab */}
+        {
+          adminTab === 'settings' && (
+            <div className="max-w-3xl space-y-8 animate-in fade-in duration-500">
+              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">System Settings</h2><p className="text-slate-400 text-sm">Configure store-wide parameters and shipping fees.</p></div>
+              <div className="bg-white rounded-[2rem] border border-gray-100 p-10 space-y-10 shadow-sm">
+                <div className="space-y-8">
+                  <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center gap-3"><Truck className="text-emerald-500" /> Delivery Fees Configuration</h3>
+                  <div className="grid grid-cols-2 gap-10">
+                    <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Inside Dhaka (৳)</label><input type="number" value={shipForm.insideDhaka} onChange={e => setShipForm({ ...shipForm, insideDhaka: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Outside Dhaka (৳)</label><input type="number" value={shipForm.outsideDhaka} onChange={e => setShipForm({ ...shipForm, outsideDhaka: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
+                  </div>
+                </div>
+                <div className="pt-6 border-t flex justify-end"><button onClick={() => updateShippingSettings(shipForm)} className="bg-emerald-600 text-white font-black px-12 py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-50 hover:bg-emerald-700 transition-all">Save Changes</button></div>
+              </div>
+
+              <div className="bg-white rounded-[2rem] border border-gray-100 p-10 space-y-10 shadow-sm">
+                <div className="space-y-8">
+                  <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center gap-3"><Globe className="text-blue-500" /> Store Identity</h3>
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Store Name</label><input value={storeForm.name} onChange={e => setStoreForm({ ...storeForm, name: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" /></div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Store Logo</label>
+                      <div className="flex items-center gap-4">
+                        {storeForm.logo_url && <img src={storeForm.logo_url} alt="Logo" className="w-12 h-12 object-contain bg-gray-50 rounded-lg p-1 border border-gray-100" />}
+                        <label className="cursor-pointer bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-blue-500 px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border border-gray-100 transition-all flex items-center gap-2">
+                          <ImageIcon size={16} /> Upload Logo
+                          <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                        </label>
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center"><h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><Package size={16} className="text-emerald-500" /> Items Purchased</h4>{isEditingOrder && (<div className="relative"><button onClick={() => setShowProductPicker(!showProductPicker)} className="flex items-center gap-2 bg-[#004d40] text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"><Plus size={14} /> Add Item</button>{showProductPicker && (<div className="absolute right-0 mt-3 w-96 bg-white border border-gray-200 rounded-[2rem] shadow-2xl p-6 z-[110] animate-in slide-in-from-top-2 duration-300"><div className="relative mb-5"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} /><input autoFocus placeholder="Search products..." className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-50 focus:bg-white focus:border-emerald-500 transition-all" value={orderProductSearch} onChange={(e) => setOrderProductSearch(e.target.value)} /></div><div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar pr-1">{orderSearchFilteredProducts.map(p => (<div key={p.id} className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 transition-all"><div className="flex justify-between items-center mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-white rounded-xl p-1 border border-gray-100 flex items-center justify-center"><img src={p.images?.[0] || ''} className="max-h-full max-w-full object-contain" /></div><span className="text-xs font-black text-gray-800 leading-tight">{p.name}</span></div><span className="text-[11px] font-black text-[#00a651] bg-white px-2 py-1 rounded-lg border border-emerald-50 shadow-sm">৳{p.price}</span></div>{p.variants && p.variants.length > 0 ? (<div className="flex flex-wrap gap-2">{p.variants.map(v => (<button key={v.id} onClick={() => addProductToOrder(p, v)} className="text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl border border-emerald-100 hover:bg-[#00a651] hover:text-white hover:border-[#00a651] transition-all">{Object.values(v.attributeValues).join(' / ')}</button>))}</div>) : (<button onClick={() => addProductToOrder(p)} className="w-full text-[9px] font-black uppercase tracking-widest bg-[#004d40] text-white py-2 rounded-xl hover:bg-black transition-all shadow-md active:scale-95">Add Piece</button>)}</div>))}{orderSearchFilteredProducts.length === 0 && orderProductSearch && (<div className="text-center py-10"><Search size={32} className="mx-auto text-gray-200 mb-2" /><p className="text-xs font-bold text-gray-400 italic">No products matched "{orderProductSearch}"</p></div>)}</div></div>)}</div>)}</div>
-                    <div className="space-y-3">{(isEditingOrder ? editingOrderData?.items : viewingOrder.items)?.map((item, idx) => (<div key={idx} className="flex justify-between items-center p-5 bg-gray-50/50 rounded-[2rem] border border-gray-50 group hover:bg-emerald-50/30 transition-all duration-300"><div className="flex items-center gap-5"><div className="w-14 h-14 bg-white rounded-2xl p-2 flex items-center justify-center border border-gray-100 shadow-sm overflow-hidden group-hover:scale-105 transition-transform"><img src={item.selectedVariantImage || item.images?.[0] || ''} className="max-h-full max-w-full object-contain" /></div><div><p className="font-black text-gray-800 text-[15px] leading-tight mb-1">{item.name}</p>{item.selectedVariantName && (<p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest inline-block bg-white px-2 py-0.5 rounded-lg border border-emerald-50">{item.selectedVariantName}</p>)}</div></div><div className="flex items-center gap-10"><div className="flex items-center gap-5">{isEditingOrder ? (<div className="flex items-center bg-white border border-gray-200 rounded-2xl p-1 shadow-sm ring-4 ring-gray-100"><button onClick={() => changeOrderItemQty(idx, -1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"><Minus size={14} /></button><span className="w-8 text-center text-sm font-black text-[#1a3a34]">{item.quantity}</span><button onClick={() => changeOrderItemQty(idx, 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-emerald-500 transition-colors"><Plus size={14} /></button></div>) : (<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Qty: <span className="text-gray-700 text-sm ml-1">{item.quantity}</span></p>)}</div><div className="text-right min-w-[120px]"><div className="text-base font-black text-[#1a3a34]">৳{(item.price * item.quantity).toFixed(2)}</div><div className="text-[10px] font-bold text-gray-400">৳{item.price.toFixed(2)} / unit</div></div>{isEditingOrder && (<button onClick={() => removeOrderItem(idx)} className="w-10 h-10 flex items-center justify-center bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 border border-gray-100 rounded-2xl transition-all shadow-sm active:scale-90"><Trash2 size={18} /></button>)}</div></div>))}</div>
+                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Address</label><input value={storeForm.address} onChange={e => setStoreForm({ ...storeForm, address: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" /></div>
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone</label><input value={storeForm.phone} onChange={e => setStoreForm({ ...storeForm, phone: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label><input value={storeForm.email} onChange={e => setStoreForm({ ...storeForm, email: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" /></div>
                   </div>
-                  {isEditingOrder && (<div className="pt-12 flex gap-5 border-t border-gray-50"><button onClick={closeForms} className="flex-1 bg-gray-50 text-gray-400 font-black py-5 rounded-[1.2rem] uppercase text-xs tracking-widest hover:bg-gray-100 transition-all active:scale-95">Discard Changes</button><button onClick={saveOrderEdits} className="flex-[2] bg-[#00a651] text-white font-black py-5 rounded-[1.2rem] uppercase text-xs tracking-widest shadow-xl shadow-emerald-100 hover:bg-[#008c44] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"><Check size={20} /> Update Order</button></div>)}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* Coupons Tab */}
-        {adminTab === 'coupons' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center">
-              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Promo Coupons</h2><p className="text-slate-400 text-sm">Create and manage marketing discount codes.</p></div>
-              <button onClick={() => setIsAdding('coupon')} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl"><Plus size={18} /> Add Coupon</button>
-            </div>
-            {(isAdding === 'coupon' || editingItem?.type === 'coupon') && (
-              <form onSubmit={handleCouponSubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Coupon Code</label><input required value={couponForm.code} onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Discount Type</label><select value={couponForm.discountType} onChange={e => setCouponForm({ ...couponForm, discountType: e.target.value as any })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold"><option value="Fixed">Fixed Amount</option><option value="Percentage">Percentage %</option></select></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Value</label><input required type="number" value={couponForm.discountValue} onChange={e => setCouponForm({ ...couponForm, discountValue: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Min Spend</label><input required type="number" value={couponForm.minimumSpend} onChange={e => setCouponForm({ ...couponForm, minimumSpend: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Expiry Date</label><input required type="date" value={couponForm.expiryDate} onChange={e => setCouponForm({ ...couponForm, expiryDate: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
-                  <div className="space-y-2 flex items-center pt-6 ml-4"><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={couponForm.autoApply} onChange={e => setCouponForm({ ...couponForm, autoApply: e.target.checked })} className="w-5 h-5 accent-emerald-500" /><span className="text-xs font-black text-gray-500 uppercase">Auto-Apply</span></label></div>
-                </div>
-                <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px]">Save Coupon</button></div>
-              </form>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {coupons.map(cp => (
-                <div key={cp.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 relative group overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-12 -mt-12 group-hover:bg-emerald-500/10 transition-colors"></div>
-                  <div className="relative space-y-4">
-                    <div className="flex justify-between items-center"><span className="bg-emerald-500 text-white px-4 py-1.5 rounded-full text-xs font-black tracking-widest">{cp.code}</span><div className="flex gap-2"><button onClick={() => { setEditingItem({ type: 'coupon', data: cp }); setCouponForm(cp); }} className="text-gray-300 hover:text-blue-500"><Pencil size={16} /></button><button onClick={() => deleteCoupon(cp.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={16} /></button></div></div>
-                    <div className="space-y-1"><p className="font-black text-2xl text-gray-800">{cp.discountType === 'Fixed' ? `৳${cp.discountValue}` : `${cp.discountValue}%`} OFF</p><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Min Spend: ৳{cp.minimumSpend}</p></div>
-                    <div className="pt-4 border-t flex items-center gap-2 text-xs font-bold text-gray-400"><RefreshCw size={14} /> Expires: {new Date(cp.expiryDate).toLocaleDateString()}</div>
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mt-6">Social Media</h4>
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Facebook URL</label><input value={storeForm.socials?.facebook || ''} onChange={e => setStoreForm({ ...storeForm, socials: { ...storeForm.socials, facebook: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="https://facebook.com/..." /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Instagram URL</label><input value={storeForm.socials?.instagram || ''} onChange={e => setStoreForm({ ...storeForm, socials: { ...storeForm.socials, instagram: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="https://instagram.com/..." /></div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Reviews Tab */}
-        {adminTab === 'reviews' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Customer Reviews</h2><p className="text-slate-400 text-sm">Moderate and respond to customer feedback.</p></div>
-            <div className="space-y-6">
-              {reviews.map(review => (
-                <div key={review.id} className="bg-white rounded-[2rem] border border-gray-100 p-8 space-y-6 group">
-                  <div className="flex justify-between items-start">
-                    <div className="flex gap-4"><div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white font-black text-xl">{review.authorName.charAt(0)}</div><div><h4 className="font-black text-gray-800">{review.authorName}</h4><span className="text-[10px] font-black text-gray-400 uppercase">{review.productName} • {new Date(review.createdAt).toLocaleDateString()}</span></div></div>
-                    <div className="flex items-center gap-4"><div className="flex text-yellow-400 gap-0.5">{[1, 2, 3, 4, 5].map(i => <Star key={i} size={14} fill={i <= review.rating ? "currentColor" : "none"} className={i <= review.rating ? "" : "text-gray-200"} />)}</div><button onClick={() => deleteReview(review.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18} /></button></div>
-                  </div>
-                  <p className="text-gray-600 text-[15px] leading-relaxed italic">"{review.comment}"</p>
-                  {review.reply ? (
-                    <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100"><span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-2">Merchant Response</span><p className="text-gray-800 text-sm font-bold">"{review.reply}"</p><button onClick={() => setReplyingTo(review.id)} className="text-[10px] font-black text-emerald-500 uppercase mt-4 hover:underline">Edit Response</button></div>
-                  ) : (
-                    <button onClick={() => setReplyingTo(review.id)} className="bg-gray-50 hover:bg-emerald-50 text-gray-500 hover:text-emerald-600 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-gray-100 transition-all">Reply to Review</button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {replyingTo && (
-              <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4">
-                <form onSubmit={handleReplySubmit} className="bg-white rounded-[2rem] w-full max-w-lg p-10 shadow-2xl space-y-6 animate-in zoom-in-95">
-                  <div className="flex justify-between items-center"><h3 className="text-xl font-black text-gray-800 uppercase tracking-widest">Merchant Reply</h3><button type="button" onClick={() => setReplyingTo(null)} className="text-gray-300 hover:text-red-500"><X size={24} /></button></div>
-                  <textarea value={replyText} onChange={e => setReplyText(e.target.value)} required placeholder="Write your response here..." className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-6 h-48 text-sm font-medium outline-none focus:border-emerald-500 transition-all" />
-                  <div className="flex gap-4"><button type="button" onClick={() => setReplyingTo(null)} className="flex-1 bg-gray-50 text-gray-400 font-black py-4 rounded-xl text-xs uppercase">Cancel</button><button type="submit" className="flex-1 bg-emerald-500 text-white font-black py-4 rounded-xl text-xs uppercase tracking-widest shadow-lg">Submit Reply</button></div>
-                </form>
+                <div className="pt-6 border-t flex justify-end"><button onClick={() => updateStoreInfo(storeForm)} className="bg-blue-600 text-white font-black px-12 py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-lg shadow-blue-50 hover:bg-blue-700 transition-all">Update Identity</button></div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Users Tab */}
-        {adminTab === 'users' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Registered Users</h2><p className="text-slate-400 text-sm">Manage user accounts and permission roles.</p></div>
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b text-[10px] uppercase font-black text-slate-400 tracking-widest">
-                  <tr><th className="px-8 py-6">User</th><th className="px-6 py-6">Role</th><th className="px-6 py-6">Registered On</th><th className="px-8 py-6 text-right">Actions</th></tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {users.map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-8 py-5 flex items-center gap-4"><div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 font-black text-lg">{u.email.charAt(0).toUpperCase()}</div><div className="flex flex-col"><span className="font-bold text-gray-800">{u.full_name || 'Anonymous User'}</span><span className="text-xs text-gray-400">{u.email}</span></div></td>
-                      <td className="px-6 py-5"><span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${u.role === 'admin' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>{u.role}</span></td>
-                      <td className="px-6 py-5 text-gray-400 font-bold text-sm">{new Date(u.created_at).toLocaleDateString()}</td>
-                      <td className="px-8 py-5 text-right"><button onClick={() => updateUserRole(u.id, u.role === 'admin' ? 'customer' : 'admin')} className="text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:underline">{u.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="bg-amber-50 rounded-[2rem] border border-amber-100 p-10 flex items-start gap-6"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-amber-500 shadow-sm shrink-0"><AlertTriangle /></div><div><h4 className="font-black text-amber-800 uppercase text-sm tracking-widest mb-2">Technical Warning</h4><p className="text-sm text-amber-700/80 leading-relaxed font-medium">Changing shipping settings affects all active checkouts instantly.</p></div></div>
             </div>
-          </div>
-        )}
-
-        {/* System Settings Tab */}
-        {adminTab === 'settings' && (
-          <div className="max-w-3xl space-y-8 animate-in fade-in duration-500">
-            <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">System Settings</h2><p className="text-slate-400 text-sm">Configure store-wide parameters and shipping fees.</p></div>
-            <div className="bg-white rounded-[2rem] border border-gray-100 p-10 space-y-10 shadow-sm">
-              <div className="space-y-8">
-                <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center gap-3"><Truck className="text-emerald-500" /> Delivery Fees Configuration</h3>
-                <div className="grid grid-cols-2 gap-10">
-                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Inside Dhaka (৳)</label><input type="number" value={shipForm.insideDhaka} onChange={e => setShipForm({ ...shipForm, insideDhaka: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
-                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Outside Dhaka (৳)</label><input type="number" value={shipForm.outsideDhaka} onChange={e => setShipForm({ ...shipForm, outsideDhaka: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black outline-none focus:bg-white focus:border-emerald-500 transition-all" /></div>
-                </div>
-              </div>
-              <div className="pt-6 border-t flex justify-end"><button onClick={() => updateShippingSettings(shipForm)} className="bg-emerald-600 text-white font-black px-12 py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-50 hover:bg-emerald-700 transition-all">Save Changes</button></div>
-            </div>
-
-            <div className="bg-white rounded-[2rem] border border-gray-100 p-10 space-y-10 shadow-sm">
-              <div className="space-y-8">
-                <h3 className="text-lg font-black text-gray-800 uppercase tracking-widest flex items-center gap-3"><Globe className="text-blue-500" /> Store Identity</h3>
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Store Name</label><input value={storeForm.name} onChange={e => setStoreForm({ ...storeForm, name: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" /></div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Store Logo</label>
-                    <div className="flex items-center gap-4">
-                      {storeForm.logo_url && <img src={storeForm.logo_url} alt="Logo" className="w-12 h-12 object-contain bg-gray-50 rounded-lg p-1 border border-gray-100" />}
-                      <label className="cursor-pointer bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-blue-500 px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border border-gray-100 transition-all flex items-center gap-2">
-                        <ImageIcon size={16} /> Upload Logo
-                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Address</label><input value={storeForm.address} onChange={e => setStoreForm({ ...storeForm, address: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" /></div>
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone</label><input value={storeForm.phone} onChange={e => setStoreForm({ ...storeForm, phone: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" /></div>
-                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label><input value={storeForm.email} onChange={e => setStoreForm({ ...storeForm, email: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" /></div>
-                </div>
-
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mt-6">Social Media</h4>
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Facebook URL</label><input value={storeForm.socials?.facebook || ''} onChange={e => setStoreForm({ ...storeForm, socials: { ...storeForm.socials, facebook: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="https://facebook.com/..." /></div>
-                  <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Instagram URL</label><input value={storeForm.socials?.instagram || ''} onChange={e => setStoreForm({ ...storeForm, socials: { ...storeForm.socials, instagram: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="https://instagram.com/..." /></div>
-                </div>
-              </div>
-              <div className="pt-6 border-t flex justify-end"><button onClick={() => updateStoreInfo(storeForm)} className="bg-blue-600 text-white font-black px-12 py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-lg shadow-blue-50 hover:bg-blue-700 transition-all">Update Identity</button></div>
-            </div>
-
-            <div className="bg-amber-50 rounded-[2rem] border border-amber-100 p-10 flex items-start gap-6"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-amber-500 shadow-sm shrink-0"><AlertTriangle /></div><div><h4 className="font-black text-amber-800 uppercase text-sm tracking-widest mb-2">Technical Warning</h4><p className="text-sm text-amber-700/80 leading-relaxed font-medium">Changing shipping settings affects all active checkouts instantly.</p></div></div>
-          </div>
-        )}
+          )
+        }
 
         {/* Database Schema Tab */}
-        {adminTab === 'database' && (
-          <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl">
-            <div className="flex justify-between items-center">
-              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Supabase SQL Schema</h2><p className="text-slate-400 text-sm">Copy and paste this script into your Supabase SQL Editor.</p></div>
-              <button onClick={handleCopySchema} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase text-[11px] transition-all shadow-lg active:scale-95 ${copySuccess ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-white hover:bg-black'}`}>{copySuccess ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy SQL Script</>}</button>
+        {
+          adminTab === 'database' && (
+            <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl">
+              <div className="flex justify-between items-center">
+                <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Supabase SQL Schema</h2><p className="text-slate-400 text-sm">Copy and paste this script into your Supabase SQL Editor.</p></div>
+                <button onClick={handleCopySchema} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black uppercase text-[11px] transition-all shadow-lg active:scale-95 ${copySuccess ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-white hover:bg-black'}`}>{copySuccess ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy SQL Script</>}</button>
+              </div>
+              <div className="relative group"><div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-[2.5rem] blur opacity-10 group-hover:opacity-20 transition duration-1000"></div><div className="relative bg-[#0f172a] rounded-[2rem] overflow-hidden shadow-2xl border border-slate-800"><div className="flex items-center justify-between px-8 py-4 bg-slate-900 border-b border-slate-800"><div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500"></div><div className="w-3 h-3 rounded-full bg-amber-500"></div><div className="w-3 h-3 rounded-full bg-emerald-500"></div></div><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Supabase Setup Script</span></div><pre className="p-10 text-emerald-400 font-mono text-sm leading-relaxed overflow-x-auto max-h-[600px] custom-scrollbar">{SQL_SCHEMA}</pre></div></div>
             </div>
-            <div className="relative group"><div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-[2.5rem] blur opacity-10 group-hover:opacity-20 transition duration-1000"></div><div className="relative bg-[#0f172a] rounded-[2rem] overflow-hidden shadow-2xl border border-slate-800"><div className="flex items-center justify-between px-8 py-4 bg-slate-900 border-b border-slate-800"><div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500"></div><div className="w-3 h-3 rounded-full bg-amber-500"></div><div className="w-3 h-3 rounded-full bg-emerald-500"></div></div><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Supabase Setup Script</span></div><pre className="p-10 text-emerald-400 font-mono text-sm leading-relaxed overflow-x-auto max-h-[600px] custom-scrollbar">{SQL_SCHEMA}</pre></div></div>
-          </div>
-        )}
-      </main>
-    </div>
+          )
+        }
+      </main >
+    </div >
   );
 };
 
