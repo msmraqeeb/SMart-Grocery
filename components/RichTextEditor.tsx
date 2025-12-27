@@ -1,11 +1,13 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  Bold, Italic, List, ListOrdered, Quote, AlignLeft, AlignCenter, AlignRight, 
+import {
+  Bold, Italic, List, ListOrdered, Quote, AlignLeft, AlignCenter, AlignRight,
   Link as LinkIcon, Maximize2, Type, ChevronDown, MoreHorizontal,
   Minus, Eraser, HelpCircle, Redo, Undo, Code as CodeIcon,
   Minimize2, Palette, Smile, Type as TypeIcon, X
 } from 'lucide-react';
+
+import { supabase } from '../lib/supabase';
 
 interface RichTextEditorProps {
   value: string;
@@ -22,8 +24,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, label,
   const [showParagraphMenu, setShowParagraphMenu] = useState(false);
   const [showSpecialChars, setShowSpecialChars] = useState(false);
   const [pasteAsText, setPasteAsText] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [wordCount, setWordCount] = useState(0);
+
+
 
   const colors = [
     '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#efefef', '#f3f3f3', '#ffffff',
@@ -47,6 +53,28 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, label,
     updateWordCount(value || '');
   }, [value, isVisual, updateWordCount]);
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `content-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+      execCommand('insertImage', data.publicUrl);
+    } catch (error: any) {
+      alert(`Upload failed: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleInput = () => {
     if (editorRef.current) {
       const html = editorRef.current.innerHTML;
@@ -57,7 +85,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, label,
 
   const execCommand = (command: string, val: string = '') => {
     editorRef.current?.focus();
-    const finalVal = command === 'formatBlock' && !val.startsWith('<') ? `<${val}>` : val;
+    // Fix: formatBlock expects 'h1', 'p' etc. not '<h1>'
+    const finalVal = val;
     document.execCommand(command, false, finalVal);
     handleInput();
     setShowColorPicker(false);
@@ -103,11 +132,28 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, label,
         .rich-editor-visual p { margin-bottom: 1em !important; }
       `}</style>
 
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageUpload}
+        className="hidden"
+        accept="image/*"
+      />
+
       {/* Top Header with Tabs */}
       <div className="flex justify-between items-center bg-gray-50 border-b border-gray-200 px-3 py-1.5">
         <div className="flex items-center gap-2">
-          <button type="button" className="flex items-center gap-1.5 bg-white border border-gray-300 px-3 py-1 rounded-md text-xs font-bold text-emerald-700 shadow-sm hover:bg-gray-50">
-            <Maximize2 size={12} /> Add Media
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }}
+            disabled={isUploading}
+            className={`flex items-center gap-1.5 bg-white border border-gray-300 px-3 py-1 rounded-md text-xs font-bold text-emerald-700 shadow-sm hover:bg-gray-50 ${isUploading ? 'opacity-50 cursor-wait' : ''}`}
+          >
+            <Maximize2 size={12} /> {isUploading ? 'Uploading...' : 'Add Media'}
           </button>
           <HelpCircle size={14} className="text-gray-400 cursor-help" />
         </div>
@@ -118,127 +164,129 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, label,
       </div>
 
       {/* Toolbar */}
-      {isVisual && (
-        <div className="bg-[#f7f7f7] border-b border-gray-200 p-2 flex flex-col gap-2 select-none">
-          {/* Row 1 */}
-          <div className="flex flex-wrap items-center gap-1 relative">
-            <div className="relative">
-              <button 
-                type="button" 
-                onClick={() => setShowParagraphMenu(!showParagraphMenu)}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-md bg-white text-xs font-bold text-gray-600 hover:border-gray-400 min-w-[120px] justify-between shadow-sm"
-              >
-                Paragraph <ChevronDown size={14} className="text-gray-400" />
-              </button>
-              {showParagraphMenu && (
-                <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-xl py-2 z-50 min-w-[180px] animate-in fade-in zoom-in-95 duration-200">
-                  {[
-                    { label: 'Paragraph', val: 'p' },
-                    { label: 'Heading 1', val: 'h1' },
-                    { label: 'Heading 2', val: 'h2' },
-                    { label: 'Heading 3', val: 'h3' },
-                    { label: 'Heading 4', val: 'h4' },
-                    { label: 'Heading 5', val: 'h5' },
-                    { label: 'Heading 6', val: 'h6' },
-                    { label: 'Preformatted', val: 'pre' }
-                  ].map(item => (
-                    <button key={item.val} type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('formatBlock', item.val); }} className="w-full text-left px-5 py-2.5 hover:bg-emerald-50 text-xs font-bold text-gray-700 transition-colors">{item.label}</button>
-                  ))}
+      {
+        isVisual && (
+          <div className="bg-[#f7f7f7] border-b border-gray-200 p-2 flex flex-col gap-2 select-none">
+            {/* Row 1 */}
+            <div className="flex flex-wrap items-center gap-1 relative">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowParagraphMenu(!showParagraphMenu)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-md bg-white text-xs font-bold text-gray-600 hover:border-gray-400 min-w-[120px] justify-between shadow-sm"
+                >
+                  Paragraph <ChevronDown size={14} className="text-gray-400" />
+                </button>
+                {showParagraphMenu && (
+                  <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-xl py-2 z-50 min-w-[180px] animate-in fade-in zoom-in-95 duration-200">
+                    {[
+                      { label: 'Paragraph', val: 'p' },
+                      { label: 'Heading 1', val: 'h1' },
+                      { label: 'Heading 2', val: 'h2' },
+                      { label: 'Heading 3', val: 'h3' },
+                      { label: 'Heading 4', val: 'h4' },
+                      { label: 'Heading 5', val: 'h5' },
+                      { label: 'Heading 6', val: 'h6' },
+                      { label: 'Preformatted', val: 'pre' }
+                    ].map(item => (
+                      <button key={item.val} type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('formatBlock', item.val); }} className="w-full text-left px-5 py-2.5 hover:bg-emerald-50 text-xs font-bold text-gray-700 transition-colors">{item.label}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="w-[1px] h-5 bg-gray-300 mx-1" />
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('bold'); }} className={toolbarBtnClass()} title="Bold"><Bold size={18} /></button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('italic'); }} className={toolbarBtnClass()} title="Italic"><Italic size={18} /></button>
+              <div className="w-[1px] h-5 bg-gray-300 mx-1" />
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('insertUnorderedList'); }} className={toolbarBtnClass()} title="Unordered List"><List size={18} /></button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('insertOrderedList'); }} className={toolbarBtnClass()} title="Ordered List"><ListOrdered size={18} /></button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('formatBlock', 'blockquote'); }} className={toolbarBtnClass()} title="Blockquote"><Quote size={18} /></button>
+              <div className="w-[1px] h-5 bg-gray-300 mx-1" />
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('justifyLeft'); }} className={toolbarBtnClass()} title="Align Left"><AlignLeft size={18} /></button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('justifyCenter'); }} className={toolbarBtnClass()} title="Align Center"><AlignCenter size={18} /></button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('justifyRight'); }} className={toolbarBtnClass()} title="Align Right"><AlignRight size={18} /></button>
+              <div className="w-[1px] h-5 bg-gray-300 mx-1" />
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); const url = prompt('Enter URL:'); if (url) execCommand('createLink', url); }} className={toolbarBtnClass()} title="Insert Link"><LinkIcon size={18} /></button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('insertHorizontalRule'); }} className={toolbarBtnClass()} title="Insert Read More"><MoreHorizontal size={18} /></button>
+              <div className="w-[1px] h-5 bg-gray-300 mx-1" />
+              <button type="button" onClick={() => setShowSecondRow(!showSecondRow)} className={toolbarBtnClass(showSecondRow)} title="Toolbar Toggle"><TypeIcon size={18} /></button>
+              <button type="button" onClick={() => setIsFullscreen(!isFullscreen)} className={toolbarBtnClass(isFullscreen)} title="Distraction Free Writing">{isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>
+            </div>
+
+            {/* Row 2 (Kitchen Sink) */}
+            {showSecondRow && (
+              <div className="flex flex-wrap items-center gap-1 animate-in slide-in-from-top-1 duration-300">
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('strikeThrough'); }} className={toolbarBtnClass()} title="Strikethrough"><span className="font-serif line-through font-black text-sm">abc</span></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('insertHorizontalRule'); }} className={toolbarBtnClass()} title="Horizontal Line"><Minus size={18} /></button>
+
+                <div className="relative">
+                  <button type="button" onClick={() => { setShowColorPicker(!showColorPicker); setShowSpecialChars(false); }} className={toolbarBtnClass(showColorPicker)} title="Text Color">
+                    <div className="flex flex-col items-center leading-none">
+                      <span className="font-black text-sm">A</span>
+                      <div className="w-4 h-1 bg-red-500 rounded-full"></div>
+                    </div>
+                  </button>
+                  {showColorPicker && (
+                    <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-2xl p-4 z-[100] w-[260px] animate-in fade-in zoom-in-95 duration-200">
+                      <div className="flex items-center justify-between mb-3 px-1">
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Color</span>
+                        <button onClick={() => setShowColorPicker(false)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1.5">
+                        {colors.map(color => (
+                          <button
+                            key={color}
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); execCommand('foreColor', color); }}
+                            className="w-7 h-7 rounded-lg border border-gray-100 hover:scale-110 hover:shadow-md transition-all active:scale-95"
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="w-[1px] h-5 bg-gray-300 mx-1" />
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('bold'); }} className={toolbarBtnClass()} title="Bold"><Bold size={18} /></button>
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('italic'); }} className={toolbarBtnClass()} title="Italic"><Italic size={18} /></button>
-            <div className="w-[1px] h-5 bg-gray-300 mx-1" />
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('insertUnorderedList'); }} className={toolbarBtnClass()} title="Unordered List"><List size={18} /></button>
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('insertOrderedList'); }} className={toolbarBtnClass()} title="Ordered List"><ListOrdered size={18} /></button>
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('formatBlock', 'blockquote'); }} className={toolbarBtnClass()} title="Blockquote"><Quote size={18} /></button>
-            <div className="w-[1px] h-5 bg-gray-300 mx-1" />
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('justifyLeft'); }} className={toolbarBtnClass()} title="Align Left"><AlignLeft size={18} /></button>
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('justifyCenter'); }} className={toolbarBtnClass()} title="Align Center"><AlignCenter size={18} /></button>
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('justifyRight'); }} className={toolbarBtnClass()} title="Align Right"><AlignRight size={18} /></button>
-            <div className="w-[1px] h-5 bg-gray-300 mx-1" />
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); const url = prompt('Enter URL:'); if (url) execCommand('createLink', url); }} className={toolbarBtnClass()} title="Insert Link"><LinkIcon size={18} /></button>
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('insertHorizontalRule'); }} className={toolbarBtnClass()} title="Insert Read More"><MoreHorizontal size={18} /></button>
-            <div className="w-[1px] h-5 bg-gray-300 mx-1" />
-            <button type="button" onClick={() => setShowSecondRow(!showSecondRow)} className={toolbarBtnClass(showSecondRow)} title="Toolbar Toggle"><TypeIcon size={18} /></button>
-            <button type="button" onClick={() => setIsFullscreen(!isFullscreen)} className={toolbarBtnClass(isFullscreen)} title="Distraction Free Writing">{isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>
+
+                <button type="button" onClick={() => setPasteAsText(!pasteAsText)} className={toolbarBtnClass(pasteAsText)} title="Paste as Text"><Eraser size={18} className={pasteAsText ? 'text-blue-500' : ''} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('removeFormat'); }} className={toolbarBtnClass()} title="Clear Formatting"><Eraser size={18} /></button>
+
+                <div className="relative">
+                  <button type="button" onClick={() => { setShowSpecialChars(!showSpecialChars); setShowColorPicker(false); }} className={toolbarBtnClass(showSpecialChars)} title="Special Character">
+                    <span className="font-serif font-black text-lg">Ω</span>
+                  </button>
+                  {showSpecialChars && (
+                    <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-2xl p-4 z-[100] w-[280px] animate-in fade-in zoom-in-95 duration-200">
+                      <div className="flex items-center justify-between mb-3 px-1">
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Special Symbols</span>
+                        <button onClick={() => setShowSpecialChars(false)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
+                      </div>
+                      <div className="grid grid-cols-6 gap-2">
+                        {specialChars.map(char => (
+                          <button
+                            key={char}
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); insertAtCursor(char); }}
+                            className="w-9 h-9 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm rounded-xl flex items-center justify-center text-lg font-medium transition-all active:scale-90 bg-gray-50 border border-transparent"
+                          >
+                            {char}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('outdent'); }} className={toolbarBtnClass()} title="Decrease Indent"><AlignLeft size={18} className="rotate-180" /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('indent'); }} className={toolbarBtnClass()} title="Increase Indent"><AlignLeft size={18} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('undo'); }} className={toolbarBtnClass()} title="Undo"><Undo size={18} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('redo'); }} className={toolbarBtnClass()} title="Redo"><Redo size={18} /></button>
+                <button type="button" className={toolbarBtnClass()} title="Keyboard Shortcuts"><HelpCircle size={18} /></button>
+              </div>
+            )}
           </div>
-
-          {/* Row 2 (Kitchen Sink) */}
-          {showSecondRow && (
-            <div className="flex flex-wrap items-center gap-1 animate-in slide-in-from-top-1 duration-300">
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('strikeThrough'); }} className={toolbarBtnClass()} title="Strikethrough"><span className="font-serif line-through font-black text-sm">abc</span></button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('insertHorizontalRule'); }} className={toolbarBtnClass()} title="Horizontal Line"><Minus size={18} /></button>
-              
-              <div className="relative">
-                <button type="button" onClick={() => { setShowColorPicker(!showColorPicker); setShowSpecialChars(false); }} className={toolbarBtnClass(showColorPicker)} title="Text Color">
-                  <div className="flex flex-col items-center leading-none">
-                    <span className="font-black text-sm">A</span>
-                    <div className="w-4 h-1 bg-red-500 rounded-full"></div>
-                  </div>
-                </button>
-                {showColorPicker && (
-                  <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-2xl p-4 z-[100] w-[260px] animate-in fade-in zoom-in-95 duration-200">
-                    <div className="flex items-center justify-between mb-3 px-1">
-                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Color</span>
-                       <button onClick={() => setShowColorPicker(false)} className="text-gray-300 hover:text-red-500"><X size={14}/></button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1.5">
-                      {colors.map(color => (
-                        <button 
-                          key={color} 
-                          type="button" 
-                          onMouseDown={(e) => { e.preventDefault(); execCommand('foreColor', color); }} 
-                          className="w-7 h-7 rounded-lg border border-gray-100 hover:scale-110 hover:shadow-md transition-all active:scale-95" 
-                          style={{ backgroundColor: color }} 
-                          title={color}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button type="button" onClick={() => setPasteAsText(!pasteAsText)} className={toolbarBtnClass(pasteAsText)} title="Paste as Text"><Eraser size={18} className={pasteAsText ? 'text-blue-500' : ''} /></button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('removeFormat'); }} className={toolbarBtnClass()} title="Clear Formatting"><Eraser size={18} /></button>
-              
-              <div className="relative">
-                <button type="button" onClick={() => { setShowSpecialChars(!showSpecialChars); setShowColorPicker(false); }} className={toolbarBtnClass(showSpecialChars)} title="Special Character">
-                  <span className="font-serif font-black text-lg">Ω</span>
-                </button>
-                {showSpecialChars && (
-                  <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-2xl p-4 z-[100] w-[280px] animate-in fade-in zoom-in-95 duration-200">
-                    <div className="flex items-center justify-between mb-3 px-1">
-                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Special Symbols</span>
-                       <button onClick={() => setShowSpecialChars(false)} className="text-gray-300 hover:text-red-500"><X size={14}/></button>
-                    </div>
-                    <div className="grid grid-cols-6 gap-2">
-                      {specialChars.map(char => (
-                        <button 
-                          key={char} 
-                          type="button" 
-                          onMouseDown={(e) => { e.preventDefault(); insertAtCursor(char); }} 
-                          className="w-9 h-9 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm rounded-xl flex items-center justify-center text-lg font-medium transition-all active:scale-90 bg-gray-50 border border-transparent"
-                        >
-                          {char}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('outdent'); }} className={toolbarBtnClass()} title="Decrease Indent"><AlignLeft size={18} className="rotate-180" /></button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('indent'); }} className={toolbarBtnClass()} title="Increase Indent"><AlignLeft size={18} /></button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('undo'); }} className={toolbarBtnClass()} title="Undo"><Undo size={18} /></button>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); execCommand('redo'); }} className={toolbarBtnClass()} title="Redo"><Redo size={18} /></button>
-              <button type="button" className={toolbarBtnClass()} title="Keyboard Shortcuts"><HelpCircle size={18} /></button>
-            </div>
-          )}
-        </div>
-      )}
+        )
+      }
 
       {/* Main Editing Area */}
       <div className="relative flex-1 overflow-hidden bg-white" style={{ height: isFullscreen ? 'calc(100vh - 120px)' : height }}>
@@ -273,7 +321,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, label,
           <span>Words: {wordCount}</span>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

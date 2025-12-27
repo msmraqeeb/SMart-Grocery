@@ -56,8 +56,8 @@ const AboutUs: React.FC = () => {
           <div className="relative">
             <div className="rounded-[2.5rem] overflow-hidden shadow-2xl shadow-emerald-100">
               <img
-                src="https://images.unsplash.com/photo-1506484334402-40f21503fd0d?auto=format&fit=crop&q=80&w=800"
-                alt="Farmer"
+                src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/about-us.png"
+                alt="About Us"
                 className="w-full h-full object-cover"
               />
             </div>

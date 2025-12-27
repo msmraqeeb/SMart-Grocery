@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo } from '../types';
+import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo, Page } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface StoreContextType {
@@ -13,6 +13,7 @@ interface StoreContextType {
   reviews: Review[];
   users: UserProfile[];
   addresses: Address[];
+  pages: Page[];
   wishlist: string[];
   user: any | null;
   userProfile: UserProfile | null;
@@ -64,6 +65,9 @@ interface StoreContextType {
   updateAddress: (id: string, data: Partial<Address>) => Promise<void>;
   deleteAddress: (id: string) => Promise<void>;
   toggleWishlist: (productId: string) => Promise<void>;
+  addPage: (page: Omit<Page, 'id' | 'createdAt'>) => Promise<void>;
+  updatePage: (id: string, page: Partial<Page>) => Promise<void>;
+  deletePage: (id: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAllData: () => Promise<void>;
   searchQuery: string;
@@ -83,6 +87,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [reviews, setReviews] = useState<Review[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [pages, setPages] = useState<Page[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [user, setUser] = useState<any | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -168,7 +173,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const fetchData = async (activeUser?: any) => {
     try {
-      const [pd, cat, br, coup, rev, set, attr, storeSettings] = await Promise.all([
+      const [pd, cat, br, coup, rev, set, attr, storeSettings, pagesRes] = await Promise.all([
         supabase.from('products').select('*').order('created_at', { ascending: false }),
         supabase.from('categories').select('*').order('name', { ascending: true }),
         supabase.from('brands').select('*').order('name', { ascending: true }),
@@ -176,7 +181,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         supabase.from('reviews').select('*').order('created_at', { ascending: false }),
         supabase.from('settings').select('*').eq('key', 'shipping_fees').maybeSingle(),
         supabase.from('attributes').select('*').order('name', { ascending: true }),
-        supabase.from('settings').select('*').eq('key', 'store_info').maybeSingle()
+        supabase.from('settings').select('*').eq('key', 'store_info').maybeSingle(),
+        supabase.from('pages').select('*').order('created_at', { ascending: false })
       ]);
 
       if (pd.data) setProducts(pd.data.map(mapProduct));
@@ -187,6 +193,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (set.data?.value) setShippingSettings(set.data.value);
       if (attr.data) setAttributes(attr.data.map(a => ({ id: String(a.id), name: a.name, values: Array.isArray(a.values) ? a.values : [] })));
       if (storeSettings.data?.value) setStoreInfo(storeSettings.data.value);
+      if (pagesRes.data) setPages(pagesRes.data.map((p: any) => ({
+        id: String(p.id),
+        title: p.title,
+        slug: p.slug,
+        content: p.content,
+        isPublished: p.is_published,
+        createdAt: p.created_at
+      })));
 
 
       if (activeUser) {
@@ -373,7 +387,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <StoreContext.Provider value={{
-      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
+      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, pages, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
       setAdminTab: (tab: AdminTab) => setAdminTab(tab), toggleAdmin: () => { }, addToCart, removeFromCart: (id) => setCart(cart.filter(i => (i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id) !== id)),
       updateQuantity: (id, d) => setCart(cart.map(i => {
         const itemKey = i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id;
@@ -558,6 +572,31 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const { error } = await supabase.from('addresses').delete().eq('id', id);
         if (error) throw new Error(error.message);
         setAddresses(prev => prev.filter(a => a.id !== id));
+      },
+      addPage: async (p) => {
+        const { error } = await supabase.from('pages').insert([{
+          title: p.title,
+          slug: p.slug,
+          content: p.content,
+          is_published: p.isPublished
+        }]);
+        if (error) throw new Error(error.message);
+        await fetchData(user);
+      },
+      updatePage: async (id, p) => {
+        const { error } = await supabase.from('pages').update({
+          title: p.title,
+          slug: p.slug,
+          content: p.content,
+          is_published: p.isPublished
+        }).eq('id', id);
+        if (error) throw new Error(error.message);
+        await fetchData(user);
+      },
+      deletePage: async (id) => {
+        const { error } = await supabase.from('pages').delete().eq('id', id);
+        if (error) throw new Error(error.message);
+        await fetchData(user);
       },
       toggleWishlist: async (pId) => {
         if (!user) return;

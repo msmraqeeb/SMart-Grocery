@@ -14,6 +14,7 @@ import OrderSuccess from './pages/OrderSuccess';
 import ProductDetails from './pages/ProductDetails';
 import Login from './pages/Login';
 import AboutUs from './pages/AboutUs';
+import DynamicPage from './pages/DynamicPage';
 import { StoreProvider, useStore } from './context/StoreContext';
 
 const AppContent: React.FC = () => {
@@ -43,6 +44,7 @@ const AppContent: React.FC = () => {
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success/:orderId" element={<OrderSuccess />} />
+          <Route path="/pages/:slug" element={<DynamicPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

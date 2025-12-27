@@ -125,8 +125,17 @@ export interface Address {
   area: string;
 }
 
+export interface Page {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  isPublished: boolean;
+  createdAt: string;
+}
+
 export type ViewMode = 'home' | 'products' | 'admin';
-export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users' | 'reports';
+export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users' | 'reports' | 'pages';
 
 export interface StoreInfo {
   name: string;
