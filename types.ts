@@ -135,7 +135,18 @@ export interface Page {
 }
 
 export type ViewMode = 'home' | 'products' | 'admin';
-export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users' | 'reports' | 'pages';
+export interface Banner {
+  id: string;
+  type: 'slider' | 'right_top' | 'right_bottom';
+  title?: string;
+  subtitle?: string;
+  image_url: string;
+  link?: string;
+  sort_order?: number;
+  is_active: boolean;
+}
+
+export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users' | 'reports' | 'pages' | 'banners';
 
 export interface StoreInfo {
   name: string;

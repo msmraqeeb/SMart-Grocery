@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo, Page } from '../types';
+import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo, Page, Banner } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface StoreContextType {
@@ -14,6 +14,10 @@ interface StoreContextType {
   users: UserProfile[];
   addresses: Address[];
   pages: Page[];
+  banners: Banner[];
+  addBanner: (banner: Omit<Banner, 'id'>) => Promise<void>;
+  deleteBanner: (id: string) => Promise<void>;
+
   wishlist: string[];
   user: any | null;
   userProfile: UserProfile | null;
@@ -88,6 +92,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [pages, setPages] = useState<Page[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [user, setUser] = useState<any | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -182,8 +188,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         supabase.from('settings').select('*').eq('key', 'shipping_fees').maybeSingle(),
         supabase.from('attributes').select('*').order('name', { ascending: true }),
         supabase.from('settings').select('*').eq('key', 'store_info').maybeSingle(),
-        supabase.from('pages').select('*').order('created_at', { ascending: false })
+        supabase.from('pages').select('*').order('created_at', { ascending: false }),
+
       ]);
+
+      // Fetch banners separately to avoid blocking
+      const bannerRes = await supabase.from('banners').select('*').order('sort_order', { ascending: true });
 
       if (pd.data) setProducts(pd.data.map(mapProduct));
       if (cat.data) setCategories(cat.data.map(c => ({ id: String(c.id), name: c.name, image: c.image_url || '', slug: c.slug, parentId: c.parent_id ? String(c.parent_id) : null, itemCount: Number(c.item_count || 0) })));
@@ -201,6 +211,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         isPublished: p.is_published,
         createdAt: p.created_at
       })));
+      if (bannerRes.data) setBanners(bannerRes.data.map(b => ({
+        id: String(b.id),
+        type: b.type,
+        title: b.title,
+        subtitle: b.subtitle,
+        image_url: b.image_url,
+        link: b.link,
+        sort_order: b.sort_order,
+        is_active: b.is_active
+      })));
+
 
 
       if (activeUser) {
@@ -231,6 +252,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }], { onConflict: 'id' }).select().maybeSingle();
           profile = newProfile;
         }
+
+
 
         setUserProfile(profile || null);
         const [{ data: wishData }, { data: addrData }] = await Promise.all([
@@ -387,7 +410,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <StoreContext.Provider value={{
-      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, pages, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
+      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, pages, banners, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
+
       setAdminTab: (tab: AdminTab) => setAdminTab(tab), toggleAdmin: () => { }, addToCart, removeFromCart: (id) => setCart(cart.filter(i => (i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id) !== id)),
       updateQuantity: (id, d) => setCart(cart.map(i => {
         const itemKey = i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id;
@@ -595,6 +619,25 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       },
       deletePage: async (id) => {
         const { error } = await supabase.from('pages').delete().eq('id', id);
+        if (error) throw new Error(error.message);
+        await fetchData(user);
+      },
+      addBanner: async (b) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log("Attempting to add banner");
+        console.log("User Email:", session?.user?.email);
+        console.log("Profile Role:", userProfile?.role);
+
+        // Use generic insert if specific RLS fails first time
+        const { error } = await supabase.from('banners').insert([b]);
+        if (error) {
+          console.error("Supabase RLS Error:", error);
+          throw error;
+        }
+        await fetchData(user);
+      },
+      deleteBanner: async (id) => {
+        const { error } = await supabase.from('banners').delete().eq('id', id);
         if (error) throw new Error(error.message);
         await fetchData(user);
       },
