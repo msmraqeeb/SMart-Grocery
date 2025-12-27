@@ -12,58 +12,58 @@ const Home: React.FC = () => {
 
   return (
     <div className="w-full bg-white pb-20">
-      
+
       {/* Hero Section */}
       <section className="container mx-auto px-4 md:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Slider (Left 2/3) */}
           <div className="lg:col-span-2 relative rounded-xl overflow-hidden h-[350px] md:h-[450px]">
-             {/* Left Illustration Part */}
-             <div className="absolute inset-0 flex">
-                <div className="w-1/2 bg-[#f0f9f4] relative">
-                   <img src="https://images.unsplash.com/photo-1580915411954-282cb1b0d780?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover opacity-80" alt="delivery"/>
-                   <div className="absolute inset-0 bg-emerald-500/10"></div>
-                </div>
-                <div className="w-1/2 relative">
-                   <img src="https://images.unsplash.com/photo-1500673922987-e212871fec22?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover" alt="farmer"/>
-                </div>
-             </div>
+            {/* Left Illustration Part */}
+            <div className="absolute inset-0 flex">
+              <div className="w-1/2 bg-[#f0f9f4] relative">
+                <img src="https://images.unsplash.com/photo-1580915411954-282cb1b0d780?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover opacity-80" alt="delivery" />
+                <div className="absolute inset-0 bg-emerald-500/10"></div>
+              </div>
+              <div className="w-1/2 relative">
+                <img src="https://images.unsplash.com/photo-1500673922987-e212871fec22?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover" alt="farmer" />
+              </div>
+            </div>
 
-             {/* Carousel Controls */}
-             <button className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md text-gray-400 hover:text-[#00a651] z-20">
-               <ArrowRight size={20} className="rotate-180" />
-             </button>
-             <button className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md text-gray-400 hover:text-[#00a651] z-20">
-               <ArrowRight size={20} />
-             </button>
+            {/* Carousel Controls */}
+            <button className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md text-gray-400 hover:text-[#00a651] z-20">
+              <ArrowRight size={20} className="rotate-180" />
+            </button>
+            <button className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md text-gray-400 hover:text-[#00a651] z-20">
+              <ArrowRight size={20} />
+            </button>
           </div>
 
           {/* Right Banners (Right 1/3) */}
           <div className="flex flex-col gap-6 h-full">
             {/* Top Banner */}
             <div className="flex-1 bg-[#f0f9f4] rounded-xl p-6 relative overflow-hidden flex flex-col justify-center border border-emerald-50">
-               <div className="relative z-10">
-                 <span className="text-[#00a651] font-bold text-xs mb-1 block uppercase tracking-wider">Only This Week</span>
-                 <h3 className="text-xl font-bold text-gray-800 mb-1">Quality eggs at an <br/> affordable price</h3>
-                 <p className="text-gray-500 text-xs mb-4">Eat one every day</p>
-                 <button className="bg-[#00a651] text-white text-xs px-5 py-2.5 rounded-full font-bold hover:bg-[#008c44] transition-colors flex items-center gap-2 group w-fit">
-                    Shop Now <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                 </button>
-               </div>
-               <img src="https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&q=80&w=200" className="absolute -bottom-2 -right-4 w-40 h-40 object-contain mix-blend-multiply" alt="eggs"/>
+              <div className="relative z-10">
+                <span className="text-[#00a651] font-bold text-xs mb-1 block uppercase tracking-wider">Only This Week</span>
+                <h3 className="text-xl font-bold text-gray-800 mb-1">Quality eggs at an <br /> affordable price</h3>
+                <p className="text-gray-500 text-xs mb-4">Eat one every day</p>
+                <button className="bg-[#00a651] text-white text-xs px-5 py-2.5 rounded-full font-bold hover:bg-[#008c44] transition-colors flex items-center gap-2 group w-fit">
+                  Shop Now <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+              <img src="https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&q=80&w=200" className="absolute -bottom-2 -right-4 w-40 h-40 object-contain mix-blend-multiply" alt="eggs" />
             </div>
 
             {/* Bottom Banner */}
             <div className="flex-1 bg-[#fff5f5] rounded-xl p-6 relative overflow-hidden flex flex-col justify-center border border-red-50">
               <div className="relative z-10">
-                 <span className="text-[#00a651] font-bold text-xs mb-1 block uppercase tracking-wider">Fuel Your Day</span>
-                 <h3 className="text-xl font-bold text-gray-800 mb-1">Nutritious bites for <br/> mind and body.</h3>
-                 <p className="text-gray-500 text-xs mb-4">Start fresh...</p>
-                 <button className="bg-[#00a651] text-white text-xs px-5 py-2.5 rounded-full font-bold hover:bg-[#008c44] transition-colors flex items-center gap-2 group w-fit">
-                    Shop Now <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                 </button>
-               </div>
-               <img src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=200" className="absolute -bottom-2 -right-4 w-40 h-40 object-contain mix-blend-multiply" alt="fruits"/>
+                <span className="text-[#00a651] font-bold text-xs mb-1 block uppercase tracking-wider">Fuel Your Day</span>
+                <h3 className="text-xl font-bold text-gray-800 mb-1">Nutritious bites for <br /> mind and body.</h3>
+                <p className="text-gray-500 text-xs mb-4">Start fresh...</p>
+                <button className="bg-[#00a651] text-white text-xs px-5 py-2.5 rounded-full font-bold hover:bg-[#008c44] transition-colors flex items-center gap-2 group w-fit">
+                  Shop Now <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+              <img src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=200" className="absolute -bottom-2 -right-4 w-40 h-40 object-contain mix-blend-multiply" alt="fruits" />
             </div>
           </div>
         </div>
@@ -95,7 +95,7 @@ const Home: React.FC = () => {
       <section className="container mx-auto px-4 md:px-8 mb-16">
         <div className="flex justify-between items-end mb-6">
           <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">Today's Hot Sale</h2>
-          <a href="#" className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14}/></a>
+          <a href="#" className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></a>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {hotSale.map(product => (
@@ -108,7 +108,7 @@ const Home: React.FC = () => {
       <section className="container mx-auto px-4 md:px-8 mb-16">
         <div className="flex justify-between items-end mb-6">
           <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">Popular Items</h2>
-          <a href="#" className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14}/></a>
+          <a href="#" className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></a>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Vertical Banner */}
@@ -122,9 +122,9 @@ const Home: React.FC = () => {
           </div>
           {/* Grid */}
           <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-             {popularItems.slice(0, 6).map(product => (
+            {popularItems.slice(0, 6).map(product => (
               <ProductCard key={`pop-${product.id}`} product={product} />
-             ))}
+            ))}
           </div>
         </div>
       </section>
@@ -132,28 +132,28 @@ const Home: React.FC = () => {
       {/* Promo Banners */}
       <section className="container mx-auto px-4 md:px-8 mb-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <div className="bg-[#fdf0e6] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-orange-50">
-              <div>
-                <span className="text-[#00a651] text-xs font-bold mb-1 block uppercase">Ultimate Shopping</span>
-                <h3 className="font-bold text-lg text-gray-800 mb-2">Unbeatable Deals <br/> Just a Click Away!</h3>
-                <button className="text-gray-600 text-xs font-bold border-b border-gray-600 hover:text-[#00a651] hover:border-[#00a651] transition-colors">Shop Now ➝</button>
-              </div>
-              <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=150" className="w-24 h-24 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
-           </div>
-           <div className="bg-[#e6fbf2] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-emerald-50">
-              <div className="flex-1">
-                 <h3 className="font-bold text-xl text-gray-800 leading-tight">MEGA <br/> SAVINGS, <br/> ENDLESS <br/> SMILES!</h3>
-              </div>
-              <img src="https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?auto=format&fit=crop&q=80&w=150" className="w-28 h-28 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
-           </div>
-           <div className="bg-[#eef2ff] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-blue-50">
-              <div>
-                <span className="text-blue-500 text-xs font-bold mb-1 block uppercase">Everyday Shopping</span>
-                <h3 className="font-bold text-lg text-gray-800 mb-2">With Us, Grocery <br/> Shopping is a Breeze</h3>
-                <button className="text-gray-600 text-xs font-bold border-b border-gray-600 hover:text-[#00a651] hover:border-[#00a651] transition-colors">Shop Now ➝</button>
-              </div>
-              <img src="https://images.unsplash.com/photo-1543083507-073f4df8105d?auto=format&fit=crop&q=80&w=150" className="w-24 h-24 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
-           </div>
+          <div className="bg-[#fdf0e6] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-orange-50">
+            <div>
+              <span className="text-[#00a651] text-xs font-bold mb-1 block uppercase">Ultimate Shopping</span>
+              <h3 className="font-bold text-lg text-gray-800 mb-2">Unbeatable Deals <br /> Just a Click Away!</h3>
+              <button className="text-gray-600 text-xs font-bold border-b border-gray-600 hover:text-[#00a651] hover:border-[#00a651] transition-colors">Shop Now ➝</button>
+            </div>
+            <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=150" className="w-24 h-24 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
+          </div>
+          <div className="bg-[#e6fbf2] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-emerald-50">
+            <div className="flex-1">
+              <h3 className="font-bold text-xl text-gray-800 leading-tight">MEGA <br /> SAVINGS, <br /> ENDLESS <br /> SMILES!</h3>
+            </div>
+            <img src="https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?auto=format&fit=crop&q=80&w=150" className="w-28 h-28 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
+          </div>
+          <div className="bg-[#eef2ff] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-blue-50">
+            <div>
+              <span className="text-blue-500 text-xs font-bold mb-1 block uppercase">Everyday Shopping</span>
+              <h3 className="font-bold text-lg text-gray-800 mb-2">With Us, Grocery <br /> Shopping is a Breeze</h3>
+              <button className="text-gray-600 text-xs font-bold border-b border-gray-600 hover:text-[#00a651] hover:border-[#00a651] transition-colors">Shop Now ➝</button>
+            </div>
+            <img src="https://images.unsplash.com/photo-1543083507-073f4df8105d?auto=format&fit=crop&q=80&w=150" className="w-24 h-24 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
+          </div>
         </div>
       </section>
     </div>
