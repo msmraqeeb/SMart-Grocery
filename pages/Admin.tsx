@@ -10,7 +10,7 @@ import {
   Settings as SettingsIcon, Search, Edit3, Check, Database, Copy, Printer, Calendar, BarChart3, FileText
 } from 'lucide-react';
 import { Product, Category, Order, Variant, ShippingSettings, Brand, Coupon, CartItem, StoreInfo, Page } from '../types';
-import RichTextEditor from '../components/RichTextEditor';
+import { PageBuilder } from '../components/PageBuilder';
 import { DISTRICT_AREA_DATA } from '../constants';
 
 const Admin: React.FC = () => {
@@ -1299,9 +1299,9 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Slug (URL Path)</label>
                     <input required value={pageForm.slug} onChange={e => setPageForm({ ...pageForm, slug: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold outline-none text-emerald-600" />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Page Content</label>
-                    <RichTextEditor value={pageForm.content} onChange={val => setPageForm({ ...pageForm, content: val })} label="Body Content" height="400px" />
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Page Builder</label>
+                    <PageBuilder initialContent={pageForm.content} onChange={content => setPageForm({ ...pageForm, content })} />
                   </div>
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -1324,10 +1324,10 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
                       {pages.map(p => (
                         <tr key={p.id} className="hover:bg-slate-50/50 group transition-colors">
                           <td className="px-8 py-5 font-bold text-gray-700">{p.title}</td>
-                          <td className="px-6 py-5 text-emerald-600 font-medium text-sm">/pages/{p.slug}</td>
+                          <td className="px-6 py-5 text-emerald-600 font-medium text-sm">/{p.slug}</td>
                           <td className="px-6 py-5"><span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${p.isPublished ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>{p.isPublished ? 'Published' : 'Draft'}</span></td>
                           <td className="px-8 py-5 text-right flex justify-end gap-2">
-                            <a href={`#/pages/${p.slug}`} target="_blank" rel="noreferrer" className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-emerald-500 shadow-sm"><Eye size={18} /></a>
+                            <a href={`#/${p.slug}`} target="_blank" rel="noreferrer" className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-emerald-500 shadow-sm"><Eye size={18} /></a>
                             <button onClick={() => startEditPage(p)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-blue-500 shadow-sm"><Pencil size={18} /></button>
                             <button onClick={() => deletePage(p.id)} className="bg-white p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-red-500 shadow-sm"><Trash2 size={18} /></button>
                           </td>

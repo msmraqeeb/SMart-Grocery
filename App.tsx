@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CartSidebar from './components/CartSidebar';
@@ -19,6 +19,11 @@ import { StoreProvider, useStore } from './context/StoreContext';
 
 const AppContent: React.FC = () => {
   const { isAdmin, loading } = useStore();
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   if (loading) {
     return (
@@ -44,7 +49,7 @@ const AppContent: React.FC = () => {
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success/:orderId" element={<OrderSuccess />} />
-          <Route path="/pages/:slug" element={<DynamicPage />} />
+          <Route path="/:slug" element={<DynamicPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

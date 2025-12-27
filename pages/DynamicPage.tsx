@@ -2,6 +2,13 @@ import React, { useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import DOMPurify from 'dompurify';
+import { StorySection, ValuesGrid, HeroSection, CtaSection } from '../components/PageBlocks';
+
+interface Block {
+    id: string;
+    type: 'story_section' | 'values_grid' | 'rich_text' | 'hero_section' | 'cta_section';
+    data: any;
+}
 
 const DynamicPage: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
@@ -18,27 +25,70 @@ const DynamicPage: React.FC = () => {
         </div>
     );
 
-    // Determine if we should redirect
-    // We only redirect if we are NOT loading and we searched but found nothing.
-    // OR if we found it but it's not published (and maybe we want to allow admins to see it? Logic for now says publish read only).
-    // The issue was: loading is false, but pages might be empty initially before fetch completes?
-    // StoreContext 'loading' should cover the fetch duration.
-
     if (!page || !page.isPublished) {
         return <Navigate to="/" />;
     }
 
-    return (
-        <div className="min-h-screen bg-gray-50 py-12">
-            <div className="container mx-auto px-4">
-                <div className="bg-white rounded-[2rem] shadow-sm p-8 md:p-12 mb-8">
-                    <h1 className="text-3xl md:text-5xl font-black text-gray-900 mb-8 tracking-tight">{page.title}</h1>
-                    <div
-                        className="prose prose-lg max-w-none prose-emerald"
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(page.content) }}
-                    />
+    // New Rendering Logic:
+    // If it's legacy content (no JSON), wrap in standard container.
+    // If it's JSON blocks, iterate and handle wrapping per block type.
+
+    const isJsonContent = page.content.trim().startsWith('[');
+
+    if (!isJsonContent) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-12">
+                <div className="container mx-auto px-4">
+                    <div className="bg-white rounded-[2rem] shadow-sm p-8 md:p-12 mb-8 min-h-[50vh]">
+                        <h1 className="text-3xl md:text-5xl font-black text-gray-900 mb-8 tracking-tight">{page.title}</h1>
+                        <div
+                            className="prose prose-lg max-w-none prose-emerald"
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(page.content) }}
+                        />
+                    </div>
                 </div>
             </div>
+        );
+    }
+
+    let blocks: Block[] = [];
+    try {
+        blocks = JSON.parse(page.content);
+    } catch (e) {
+        return <div className="p-12 text-center text-red-500">Error loading content</div>;
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50 pb-20">
+            {/* Note: removed global padding. Blocks define their own. */}
+
+            {blocks.map((block, index) => {
+                if (block.type === 'hero_section') {
+                    // Full Width Render
+                    return (
+                        <div key={block.id} className="w-full mb-12">
+                            <HeroSection data={block.data} />
+                        </div>
+                    );
+                } else {
+                    // Containerized Render (White Card Style)
+                    return (
+                        <div key={block.id} className="container mx-auto px-4 mb-8">
+                            <div className="bg-white rounded-[2.5rem] p-8 md:p-16 shadow-sm border border-gray-100/50">
+                                {block.type === 'story_section' && <StorySection data={block.data} />}
+                                {block.type === 'values_grid' && <ValuesGrid data={block.data} />}
+                                {block.type === 'cta_section' && <CtaSection data={block.data} />}
+                                {block.type === 'rich_text' && (
+                                    <div
+                                        className="prose prose-lg max-w-none prose-emerald"
+                                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(block.data.content) }}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    );
+                }
+            })}
         </div>
     );
 };
