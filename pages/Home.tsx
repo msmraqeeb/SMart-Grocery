@@ -288,27 +288,36 @@ const Home: React.FC = () => {
       {/* Promo Banners */}
       <section className="container mx-auto px-4 md:px-8 mb-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-[#fdf0e6] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-orange-50">
-            <div>
-              <span className="text-[#00a651] text-xs font-bold mb-1 block uppercase">Ultimate Shopping</span>
-              <h3 className="font-bold text-lg text-gray-800 mb-2">Unbeatable Deals <br /> Just a Click Away!</h3>
-              <button className="text-gray-600 text-xs font-bold border-b border-gray-600 hover:text-[#00a651] hover:border-[#00a651] transition-colors">Shop Now ➝</button>
+          {/* Banner 1: Deals */}
+          <div className="bg-gradient-to-br from-[#fff1eb] to-[#ace0f9] p-8 rounded-2xl flex items-center justify-between group cursor-pointer shadow-sm hover:shadow-md transition-all relative overflow-hidden">
+            <div className="relative z-10">
+              <span className="text-orange-600 text-xs font-black mb-2 block uppercase tracking-widest">Ultimate Shopping</span>
+              <h3 className="font-bold text-xl text-gray-800 mb-3 leading-tight">Unbeatable Deals <br /> Just a Click Away!</h3>
+              <button className="text-gray-700 text-xs font-bold border-b-2 border-gray-700 pb-0.5 group-hover:text-orange-600 group-hover:border-orange-600 transition-colors">Shop Now ➝</button>
             </div>
-            <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=150" className="w-24 h-24 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
+            <div className="absolute right-0 bottom-0 w-32 h-32 bg-white/40 rounded-full blur-2xl -mr-6 -mb-6"></div>
+            <img src="https://images.unsplash.com/photo-1573246123716-6b1782bfc499?auto=format&fit=crop&q=80&w=200" className="w-32 h-32 object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-xl relative z-10 mix-blend-multiply" alt="basket" />
           </div>
-          <div className="bg-[#e6fbf2] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-emerald-50">
-            <div className="flex-1">
-              <h3 className="font-bold text-xl text-gray-800 leading-tight">MEGA <br /> SAVINGS, <br /> ENDLESS <br /> SMILES!</h3>
+
+          {/* Banner 2: Savings */}
+          <div className="bg-gradient-to-br from-[#d4fc79] to-[#96e6a1] p-8 rounded-2xl flex items-center justify-between group cursor-pointer shadow-sm hover:shadow-md transition-all relative overflow-hidden">
+            <div className="relative z-10">
+              <h3 className="font-black text-2xl text-emerald-900 leading-none mb-4">MEGA <br /> SAVINGS, <br /> ENDLESS <br /> SMILES!</h3>
+              <span className="inline-block bg-white/80 backdrop-blur-sm text-emerald-800 text-[10px] font-bold px-3 py-1 rounded-full">UP TO 50% OFF</span>
             </div>
-            <img src="https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?auto=format&fit=crop&q=80&w=150" className="w-28 h-28 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
+            <div className="absolute right-2 top-2 w-20 h-20 bg-yellow-300/30 rounded-full blur-xl"></div>
+            <img src="https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&q=80&w=200" className="w-36 h-36 object-contain group-hover:rotate-12 transition-transform duration-500 drop-shadow-2xl relative z-10 -mr-4" alt="savings" />
           </div>
-          <div className="bg-[#eef2ff] p-6 rounded-xl flex items-center justify-between group cursor-pointer border border-blue-50">
-            <div>
-              <span className="text-blue-500 text-xs font-bold mb-1 block uppercase">Everyday Shopping</span>
-              <h3 className="font-bold text-lg text-gray-800 mb-2">With Us, Grocery <br /> Shopping is a Breeze</h3>
-              <button className="text-gray-600 text-xs font-bold border-b border-gray-600 hover:text-[#00a651] hover:border-[#00a651] transition-colors">Shop Now ➝</button>
+
+          {/* Banner 3: Delivery */}
+          <div className="bg-gradient-to-br from-[#e0c3fc] to-[#8ec5fc] p-8 rounded-2xl flex items-center justify-between group cursor-pointer shadow-sm hover:shadow-md transition-all relative overflow-hidden">
+            <div className="relative z-10">
+              <span className="text-indigo-600 text-xs font-black mb-2 block uppercase tracking-widest">Everyday Shopping</span>
+              <h3 className="font-bold text-xl text-gray-800 mb-3 leading-tight">Fast Delivery <br /> To Your Doorstep</h3>
+              <button className="text-gray-700 text-xs font-bold border-b-2 border-gray-700 pb-0.5 group-hover:text-indigo-600 group-hover:border-indigo-600 transition-colors">Order Now ➝</button>
             </div>
-            <img src="https://images.unsplash.com/photo-1543083507-073f4df8105d?auto=format&fit=crop&q=80&w=150" className="w-24 h-24 object-contain group-hover:scale-110 transition-transform mix-blend-multiply" alt="promo" />
+            <div className="absolute left-0 bottom-0 w-24 h-24 bg-white/30 rounded-full blur-2xl -ml-4 -mb-4"></div>
+            <img src="https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&q=80&w=200" className="w-32 h-32 object-contain group-hover:-translate-x-2 transition-transform duration-500 drop-shadow-xl relative z-10 mix-blend-multiply" alt="delivery" />
           </div>
         </div>
       </section>
