@@ -44,7 +44,7 @@ const AppContent: React.FC = () => {
           <Route path="/product/:slug" element={<ProductDetails />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/aboutus" element={<AboutUs />} />
           <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/login" />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />

@@ -7,10 +7,11 @@ import {
   Ticket, Eye, Truck, RefreshCw, Layers, Zap, Users as UsersIcon,
   Globe, PlusCircle, Image as ImageIcon, Save, AlertTriangle,
   ChevronDown, MessageSquare, Star, ChevronRight, Minus,
-  Settings as SettingsIcon, Search, Edit3, Check, Database, Copy, Printer, Calendar, BarChart3, FileText
+  Settings as SettingsIcon, Search, Edit3, Check, Database, Copy, Printer, Calendar, BarChart3, FileText, LayoutTemplate, Upload
 } from 'lucide-react';
-import { Product, Category, Order, Variant, ShippingSettings, Brand, Coupon, CartItem, StoreInfo, Page } from '../types';
+import { Product, Category, Order, Variant, ShippingSettings, Brand, Coupon, CartItem, StoreInfo, Page, HomeSection } from '../types';
 import { PageBuilder } from '../components/PageBuilder';
+import RichTextEditor from '../components/RichTextEditor';
 import { DISTRICT_AREA_DATA } from '../constants';
 
 const Admin: React.FC = () => {
@@ -24,7 +25,8 @@ const Admin: React.FC = () => {
     updateShippingSettings, refreshAllData, updateOrder, deleteReview, replyToReview,
     storeInfo: currentStoreInfo, updateStoreInfo,
     addPage, updatePage, deletePage,
-    banners, addBanner, deleteBanner
+    banners, addBanner, deleteBanner,
+    homeSections, addHomeSection, updateHomeSection, deleteHomeSection
   } = useStore();
 
   const [adminTab, setAdminTabState] = useState<string>('products');
@@ -68,6 +70,10 @@ const Admin: React.FC = () => {
   const [pageForm, setPageForm] = useState<Omit<Page, 'id' | 'createdAt'>>({ title: '', slug: '', content: '', isPublished: true });
   const [bannerForm, setBannerForm] = useState<{ type: 'slider' | 'right_top' | 'right_bottom'; title: string; subtitle: string; image_url: string; link: string; sort_order: number; is_active: boolean }>({
     type: 'slider', title: '', subtitle: '', image_url: '', link: '', sort_order: 0, is_active: true
+  });
+  const [sectionForm, setSectionForm] = useState<Omit<HomeSection, 'id'>>({
+    title: '', type: 'slider', filterType: 'all', sortOrder: 0, isActive: true,
+    banner: { title: '', description: '', imageUrl: '', buttonText: 'Shop Now', link: '/products' }
   });
 
   // Update forms when data is loaded
@@ -663,6 +669,52 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
     } catch (err: any) { alert(err.message); }
   };
 
+  const handleSectionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingItem?.type === 'section') {
+        const updatedSection = { ...sectionForm, id: editingItem.data.id } as HomeSection;
+        await updateHomeSection(editingItem.data.id, updatedSection);
+      } else {
+        const newSection = { ...sectionForm, id: `section-${Date.now()}` } as HomeSection;
+        await addHomeSection(newSection);
+      }
+      closeForms();
+    } catch (err: any) { alert(err.message); }
+  };
+
+  const handleSectionBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      setSectionForm({ ...sectionForm, banner: { ...sectionForm.banner!, imageUrl: data.publicUrl } });
+    } catch (error: any) {
+      alert('Error uploading image: ' + error.message);
+    }
+  };
+
+  const startEditSection = (s: HomeSection) => {
+    setSectionForm({
+      title: s.title, type: s.type, filterType: s.filterType, filterValue: s.filterValue, sortOrder: s.sortOrder, isActive: s.isActive,
+      banner: s.banner
+    });
+    setEditingItem({ type: 'section', data: s });
+    setIsAdding(null);
+  };
+
   const closeForms = () => {
     setEditingItem(null); setIsAdding(null); setViewingOrder(null); setReplyingTo(null);
     setIsEditingOrder(false); setEditingOrderData(null);
@@ -672,6 +724,9 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
     setAttrForm({ name: '' });
     setAttrValuesInput('');
     setCouponForm({ code: '', discountType: 'Fixed', discountValue: 0, minimumSpend: 0, expiryDate: '', status: 'Active', autoApply: false });
+
+    setCouponForm({ code: '', discountType: 'Fixed', discountValue: 0, minimumSpend: 0, expiryDate: '', status: 'Active', autoApply: false });
+    setSectionForm({ title: '', type: 'slider', filterType: 'all', sortOrder: 0, isActive: true, banner: { title: '', description: '', imageUrl: '', buttonText: 'Shop Now', link: '/products' } });
 
     setPageForm({ title: '', slug: '', content: '', isPublished: true });
     setShowAttrForm(false);
@@ -977,7 +1032,9 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
             { id: 'users', icon: UsersIcon, label: 'Users & Roles' },
             { id: 'settings', icon: SettingsIcon, label: 'System' },
             { id: 'database', icon: Database, label: 'Database' },
+
             { id: 'reports', icon: BarChart3, label: 'Reports' },
+            { id: 'layout', icon: LayoutTemplate, label: 'Home Layout' },
           ].map(item => (
             <button key={item.id} onClick={() => { setAdminTabState(item.id); closeForms(); }} className={`flex items-center gap-4 px-6 py-3.5 rounded-2xl transition-all font-bold text-sm ${adminTab === item.id ? 'bg-emerald-50 text-[#004d40] shadow-lg' : 'text-slate-300 hover:bg-white/10'}`}>
               <item.icon size={18} /> {item.label}
@@ -987,6 +1044,105 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
       </aside>
 
       <main className="flex-1 p-10 overflow-x-hidden">
+        {adminTab === 'layout' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center">
+              <div><h2 className="text-2xl font-black text-slate-800 tracking-tight">Home Layout</h2><p className="text-slate-400 text-sm">Manage homepage sections.</p></div>
+              {!isAdding && !editingItem && (
+                <button onClick={() => setIsAdding('section')} className="bg-[#00a651] text-white px-8 py-3.5 rounded-xl font-black uppercase text-[11px] flex items-center gap-2 shadow-xl hover:bg-[#008c44] transition-all"><Plus size={18} /> Add Section</button>
+              )}
+            </div>
+
+            {(isAdding === 'section' || editingItem?.type === 'section') ? (
+              <form onSubmit={handleSectionSubmit} className="bg-white rounded-2xl border border-emerald-100 p-10 shadow-xl space-y-8">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Section Title</label>
+                    <input required value={sectionForm.title} onChange={e => setSectionForm({ ...sectionForm, title: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Type</label>
+                    <select value={sectionForm.type} onChange={e => setSectionForm({ ...sectionForm, type: e.target.value as any })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold outline-none">
+                      <option value="slider">Slider (1 Row)</option>
+                      <option value="grid">Grid (2 Rows + Banner)</option>
+                      <option value="grid-no-banner">Grid (2 Rows, No Banner)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Filter Type</label>
+                    <select value={sectionForm.filterType} onChange={e => setSectionForm({ ...sectionForm, filterType: e.target.value as any })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold outline-none">
+                      <option value="all">All Products</option>
+                      <option value="sale">On Sale</option>
+                      <option value="featured">Featured</option>
+                      <option value="category">Specific Category</option>
+                    </select>
+                  </div>
+                  {sectionForm.filterType === 'category' && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Category</label>
+                      <select value={sectionForm.filterValue} onChange={e => setSectionForm({ ...sectionForm, filterValue: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold outline-none">
+                        <option value="">Select Category</option>
+                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sort Order</label>
+                    <input type="number" value={sectionForm.sortOrder} onChange={e => setSectionForm({ ...sectionForm, sortOrder: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold outline-none" />
+                  </div>
+                </div>
+
+                {sectionForm.type === 'grid' && (
+                  <div className="border-t pt-6">
+                    <h3 className="font-bold text-lg mb-4">Grid Banner Settings</h3>
+                    <div className="grid grid-cols-2 gap-6">
+                      <input placeholder="Banner Title" value={sectionForm.banner?.title || ''} onChange={e => setSectionForm({ ...sectionForm, banner: { ...sectionForm.banner!, title: e.target.value } })} className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold" />
+                      <input placeholder="Description" value={sectionForm.banner?.description || ''} onChange={e => setSectionForm({ ...sectionForm, banner: { ...sectionForm.banner!, description: e.target.value } })} className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold" />
+
+                      <div className="col-span-2 space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Banner Image</label>
+                        <div className="flex gap-3 items-center">
+                          {sectionForm.banner?.imageUrl && <img src={sectionForm.banner.imageUrl} className="w-12 h-12 object-cover rounded-lg border border-slate-200" />}
+                          <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-2 transition-colors h-[46px]">
+                            <Upload size={16} /> Upload
+                            <input type="file" onChange={handleSectionBannerImageUpload} className="hidden" accept="image/*" />
+                          </label>
+                          <input placeholder="Or enter Image URL" value={sectionForm.banner?.imageUrl || ''} onChange={e => setSectionForm({ ...sectionForm, banner: { ...sectionForm.banner!, imageUrl: e.target.value } })} className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold outline-none" />
+                        </div>
+                      </div>
+
+                      <input placeholder="Link" value={sectionForm.banner?.link || ''} onChange={e => setSectionForm({ ...sectionForm, banner: { ...sectionForm.banner!, link: e.target.value } })} className="col-span-2 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+                  <button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px] hover:text-slate-600">Cancel</button>
+                  <button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px] shadow-lg transition-all hover:bg-emerald-700">Save Section</button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                {homeSections.sort((a, b) => a.sortOrder - b.sortOrder).map(section => (
+                  <div key={section.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center group hover:border-emerald-200 transition-all">
+                    <div>
+                      <h3 className="font-black text-lg text-gray-800">{section.title}</h3>
+                      <div className="flex gap-2 mt-1">
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase rounded">{section.type}</span>
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase rounded">Filter: {section.filterType}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => startEditSection(section)} className="bg-gray-50 p-2 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-colors"><Pencil size={18} /></button>
+                      <button onClick={() => deleteHomeSection(section.id)} className="bg-gray-50 p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {adminTab === 'banners' && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">

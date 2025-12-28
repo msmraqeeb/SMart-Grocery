@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo, Page, Banner } from '../types';
+import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo, Page, Banner, HomeSection } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface StoreContextType {
@@ -16,7 +16,13 @@ interface StoreContextType {
   pages: Page[];
   banners: Banner[];
   addBanner: (banner: Omit<Banner, 'id'>) => Promise<void>;
+
   deleteBanner: (id: string) => Promise<void>;
+
+  homeSections: HomeSection[];
+  addHomeSection: (section: HomeSection) => Promise<void>;
+  updateHomeSection: (id: string, section: HomeSection) => Promise<void>;
+  deleteHomeSection: (id: string) => Promise<void>;
 
   wishlist: string[];
   user: any | null;
@@ -93,6 +99,31 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [pages, setPages] = useState<Page[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [homeSections, setHomeSections] = useState<HomeSection[]>([
+    {
+      id: 'hot-sale',
+      title: "Today's Hot Sale",
+      type: 'slider',
+      filterType: 'sale',
+      sortOrder: 1,
+      isActive: true
+    },
+    {
+      id: 'popular-items',
+      title: "Popular Items",
+      type: 'grid',
+      filterType: 'all',
+      sortOrder: 2,
+      isActive: true,
+      banner: {
+        title: "100% Fresh Vegetables and Authentic Products",
+        description: "Get the best quality products at the most affordable prices.",
+        imageUrl: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400",
+        buttonText: "Shop Now",
+        link: "/products"
+      }
+    }
+  ]);
 
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [user, setUser] = useState<any | null>(null);
@@ -179,7 +210,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const fetchData = async (activeUser?: any) => {
     try {
-      const [pd, cat, br, coup, rev, set, attr, storeSettings, pagesRes] = await Promise.all([
+      const [pd, cat, br, coup, rev, set, attr, storeSettings, pagesRes, homeSectionsRes] = await Promise.all([
         supabase.from('products').select('*').order('created_at', { ascending: false }),
         supabase.from('categories').select('*').order('name', { ascending: true }),
         supabase.from('brands').select('*').order('name', { ascending: true }),
@@ -189,11 +220,40 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         supabase.from('attributes').select('*').order('name', { ascending: true }),
         supabase.from('settings').select('*').eq('key', 'store_info').maybeSingle(),
         supabase.from('pages').select('*').order('created_at', { ascending: false }),
+        supabase.from('settings').select('*').eq('key', 'home_sections').maybeSingle(),
 
       ]);
 
       // Fetch banners separately to avoid blocking
       const bannerRes = await supabase.from('banners').select('*').order('sort_order', { ascending: true });
+
+      if (pd.data) setProducts(pd.data.map(mapProduct));
+      if (cat.data) setCategories(cat.data.map(c => ({ id: String(c.id), name: c.name, image: c.image_url || '', slug: c.slug, parentId: c.parent_id ? String(c.parent_id) : null, itemCount: Number(c.item_count || 0) })));
+      if (br.data) setBrands(br.data.map(b => ({ id: String(b.id), name: b.name, slug: b.slug, logo_url: b.logo_url })));
+      if (coup.data) setCoupons(coup.data.map(c => ({ id: String(c.id), code: c.code, discountType: c.discount_type, discountValue: Number(c.discount_value), minimumSpend: Number(c.minimum_spend || 0), expiryDate: String(c.expiry_date), status: c.status, autoApply: Boolean(c.auto_apply), createdAt: String(c.created_at) })));
+      if (rev.data) setReviews(rev.data.map(rv => ({ id: String(rv.id), productId: String(rv.product_id), productName: String(rv.product_name), authorName: String(rv.author_name), rating: Number(rv.rating), comment: String(rv.comment), reply: rv.reply, createdAt: String(rv.created_at) })));
+      if (set.data?.value) setShippingSettings(set.data.value);
+      if (attr.data) setAttributes(attr.data.map(a => ({ id: String(a.id), name: a.name, values: Array.isArray(a.values) ? a.values : [] })));
+      if (storeSettings.data?.value) setStoreInfo(storeSettings.data.value);
+      if (pagesRes.data) setPages(pagesRes.data.map((p: any) => ({
+        id: String(p.id),
+        title: p.title,
+        slug: p.slug,
+        content: p.content,
+        isPublished: p.is_published,
+        createdAt: p.created_at
+      })));
+      if (homeSectionsRes.data?.value) setHomeSections(homeSectionsRes.data.value);
+      if (bannerRes.data) setBanners(bannerRes.data.map(b => ({
+        id: String(b.id),
+        type: b.type,
+        title: b.title,
+        subtitle: b.subtitle,
+        image_url: b.image_url,
+        link: b.link,
+        sort_order: b.sort_order,
+        is_active: b.is_active
+      })));
 
       if (pd.data) setProducts(pd.data.map(mapProduct));
       if (cat.data) setCategories(cat.data.map(c => ({ id: String(c.id), name: c.name, image: c.image_url || '', slug: c.slug, parentId: c.parent_id ? String(c.parent_id) : null, itemCount: Number(c.item_count || 0) })));
@@ -408,11 +468,29 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return mapOrder(data);
   };
 
+  const updateHomeSectionsInDB = async (newSections: HomeSection[]) => {
+    const { error } = await supabase.from('settings').upsert({ key: 'home_sections', value: newSections });
+    if (error) throw new Error(error.message);
+    setHomeSections(newSections);
+  };
+
   return (
     <StoreContext.Provider value={{
-      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, pages, banners, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
+      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, pages, banners, homeSections, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
 
       setAdminTab: (tab: AdminTab) => setAdminTab(tab), toggleAdmin: () => { }, addToCart, removeFromCart: (id) => setCart(cart.filter(i => (i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id) !== id)),
+      addHomeSection: async (section) => {
+        const newSections = [...homeSections, { ...section, sortOrder: homeSections.length + 1 }];
+        await updateHomeSectionsInDB(newSections);
+      },
+      updateHomeSection: async (id, section) => {
+        const newSections = homeSections.map(s => s.id === id ? section : s);
+        await updateHomeSectionsInDB(newSections);
+      },
+      deleteHomeSection: async (id) => {
+        const newSections = homeSections.filter(s => s.id !== id);
+        await updateHomeSectionsInDB(newSections);
+      },
       updateQuantity: (id, d) => setCart(cart.map(i => {
         const itemKey = i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id;
         if (itemKey === id) {

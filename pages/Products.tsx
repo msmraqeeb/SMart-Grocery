@@ -1,29 +1,97 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import ProductCard from '../components/ProductCard';
-import { Filter, SlidersHorizontal, ChevronRight, Search, RotateCcw, Check, Star } from 'lucide-react';
+import { Filter, SlidersHorizontal, ChevronRight, ChevronDown, Search, RotateCcw, Check, Star } from 'lucide-react';
 import { Category } from '../types';
+
+interface CategoryNode extends Category {
+  children: CategoryNode[];
+  level: number;
+}
+
+const buildCategoryTree = (categories: Category[], parentId: string | null = null, level: number = 0): CategoryNode[] => {
+  return categories
+    .filter(cat => cat.parentId == parentId)
+    .map(cat => ({
+      ...cat,
+      children: buildCategoryTree(categories, cat.id, level + 1),
+      level
+    }));
+};
+
+const CategorySidebarItem: React.FC<{
+  category: CategoryNode;
+  selectedCategory: string;
+  onSelect: (name: string) => void;
+  selectedCategoryFamily: string[];
+}> = ({ category, selectedCategory, onSelect, selectedCategoryFamily }) => {
+  // Auto-expand if this category or any child is selected, or if it's a top-level parent of the selection
+  const isSelected = selectedCategory === category.name;
+  const isPathActive = selectedCategoryFamily.includes(category.name);
+
+  const [isExpanded, setIsExpanded] = useState(isPathActive);
+
+  // Update expansion when selection changes
+  useEffect(() => {
+    if (isPathActive) setIsExpanded(true);
+  }, [isPathActive]);
+
+  const hasChildren = category.children.length > 0;
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsExpanded(!isExpanded);
+  };
+
+  return (
+    <div className="w-full">
+      <div
+        className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${isSelected ? 'bg-emerald-50 text-emerald-600' : 'text-gray-600 hover:bg-gray-50'}`}
+        onClick={() => onSelect(category.name)}
+        style={{ paddingLeft: `${(category.level * 12) + 12}px` }}
+      >
+        <div className="flex items-center gap-2">
+          {/* Only show leaf indicator if it's a child */}
+          {category.level > 0 && !hasChildren && <div className="w-1.5 h-1.5 rounded-full bg-gray-300"></div>}
+          <span className={`${isSelected ? 'font-bold' : ''}`}>{category.name}</span>
+        </div>
+
+        {hasChildren && (
+          <button
+            onClick={handleToggle}
+            className={`p-1 rounded-md hover:bg-gray-200 transition-colors ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`}
+          >
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        )}
+      </div>
+
+      {hasChildren && isExpanded && (
+        <div className="mt-1">
+          {category.children.map(child => (
+            <CategorySidebarItem
+              key={child.id}
+              category={child}
+              selectedCategory={selectedCategory}
+              onSelect={onSelect}
+              selectedCategoryFamily={selectedCategoryFamily}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Products: React.FC = () => {
   const { products, categories, searchQuery, brands, reviews } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedMinRating, setSelectedMinRating] = useState<number | null>(null);
-  
-  const hierarchicalCategories = useMemo(() => {
-    const buildHierarchy = (parentId: string | null = null, level: number = 0): (Category & { level: number })[] => {
-      let result: (Category & { level: number })[] = [];
-      const children = categories.filter(c => c.parentId === parentId);
-      children.forEach(child => {
-        result.push({ ...child, level });
-        const subChildren = buildHierarchy(child.id, level + 1);
-        result = [...result, ...subChildren];
-      });
-      return result;
-    };
-    return buildHierarchy(null);
-  }, [categories]);
+
+  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
 
   // Helper to find all descendant category names for a given parent name
   const selectedCategoryFamily = useMemo(() => {
@@ -34,30 +102,72 @@ const Products: React.FC = () => {
       if (!currentCat) return [catName];
 
       let names = [catName];
-      const directChildren = categories.filter(c => c.parentId === currentCat.id);
-      
+      const directChildren = categories.filter(c => c.parentId === currentCat.id); // Loose equality handled by string/null checks in StoreContext but verifying logic consistency
+
       directChildren.forEach(child => {
         names = [...names, ...getDescendantNames(child.name)];
       });
-      
+
       return names;
     };
 
-    return getDescendantNames(selectedCategory);
+    // Also find ancestors to keep them expanded
+    const family = getDescendantNames(selectedCategory);
+
+    // Add ancestors
+    let curr = categories.find(c => c.name === selectedCategory);
+    while (curr && curr.parentId) {
+      const parent = categories.find(c => c.id === curr!.parentId);
+      if (parent) {
+        family.push(parent.name);
+        curr = parent;
+      } else {
+        break;
+      }
+    }
+
+    return family;
   }, [selectedCategory, categories]);
 
+  const location = useLocation();
+
+  // Sync URL category param with state
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const catParam = searchParams.get('category');
+    if (catParam) {
+      setSelectedCategory(decodeURIComponent(catParam));
+    }
+  }, [location.search]);
+
   const filteredProducts = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const showSaleOnly = searchParams.get('filter') === 'sale';
+
+    // Get all descendants for filtering products (we want to show products in subcategories too)
+    // We need a separate list for filtering because 'selectedCategoryFamily' now includes ANCESTORS for UI expansion.
+    // Pure descendants for filtering:
+    const getDescendantsOnly = (catName: string): string[] => {
+      if (catName === 'All') return [];
+      const currentCat = categories.find(c => c.name === catName);
+      if (!currentCat) return [catName];
+      let names = [catName];
+      categories.filter(c => c.parentId === currentCat.id).forEach(child => {
+        names = [...names, ...getDescendantsOnly(child.name)];
+      });
+      return names;
+    };
+    const filterCategories = selectedCategory === 'All' ? [] : getDescendantsOnly(selectedCategory);
+
     return products.filter(p => {
-      const searchMatch = !searchQuery || 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const searchMatch = !searchQuery ||
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.category.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // Updated category match: include product if its category is the selected one OR any of its descendants
-      const categoryMatch = selectedCategory === 'All' || selectedCategoryFamily.includes(p.category);
-      
+
+      const categoryMatch = selectedCategory === 'All' || filterCategories.includes(p.category);
       const brandMatch = selectedBrands.length === 0 || (p.brand && selectedBrands.includes(p.brand));
-      
+
       let ratingMatch = true;
       if (selectedMinRating !== null) {
         const prodReviews = reviews.filter(r => r.productId === p.id);
@@ -65,12 +175,14 @@ const Products: React.FC = () => {
         ratingMatch = avg >= selectedMinRating;
       }
 
-      return searchMatch && categoryMatch && brandMatch && ratingMatch;
+      const saleMatch = !showSaleOnly || (p.originalPrice !== undefined && p.originalPrice > p.price);
+
+      return searchMatch && categoryMatch && brandMatch && ratingMatch && saleMatch;
     });
-  }, [products, searchQuery, selectedCategory, selectedCategoryFamily, selectedBrands, selectedMinRating, reviews]);
+  }, [products, searchQuery, selectedCategory, selectedBrands, selectedMinRating, reviews, location.search, categories]);
 
   const toggleBrand = (brandName: string) => {
-    setSelectedBrands(prev => 
+    setSelectedBrands(prev =>
       prev.includes(brandName) ? prev.filter(b => b !== brandName) : [...prev, brandName]
     );
   };
@@ -85,52 +197,50 @@ const Products: React.FC = () => {
     <div className="bg-gray-50 min-h-screen pb-20">
       <div className="container mx-auto px-4 md:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          
+
           {/* Sidebar Filters */}
           <aside className="lg:w-72 space-y-8 shrink-0">
             {/* Category Filter */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                 <Filter size={18} className="text-emerald-500" />
-                 Categories
-               </h3>
-               <div className="space-y-1">
-                 <button 
-                   onClick={() => setSelectedCategory('All')}
-                   className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'All' ? 'bg-emerald-50 text-emerald-600' : 'text-gray-600 hover:bg-gray-50'}`}
-                 >
-                   All Categories
-                 </button>
-                 {hierarchicalCategories.map(cat => (
-                   <button 
-                     key={cat.id}
-                     onClick={() => setSelectedCategory(cat.name)}
-                     className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${selectedCategory === cat.name ? 'bg-emerald-50 text-emerald-600' : 'text-gray-600 hover:bg-gray-50'}`}
-                     style={{ paddingLeft: `${(cat.level * 16) + 12}px` }}
-                   >
-                     {cat.level > 0 && <ChevronRight size={12} className="opacity-30" />}
-                     {cat.name}
-                   </button>
-                 ))}
-               </div>
+              <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Filter size={18} className="text-emerald-500" />
+                Categories
+              </h3>
+              <div className="space-y-1">
+                <button
+                  onClick={() => setSelectedCategory('All')}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === 'All' ? 'bg-emerald-50 text-emerald-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                >
+                  All Categories
+                </button>
+                {categoryTree.map(cat => (
+                  <CategorySidebarItem
+                    key={cat.id}
+                    category={cat}
+                    selectedCategory={selectedCategory}
+                    onSelect={setSelectedCategory}
+                    selectedCategoryFamily={selectedCategoryFamily}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Brand Filter */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                 <SlidersHorizontal size={18} className="text-emerald-500" />
-                 Brands
-               </h3>
-               <div className="space-y-2">
-                 {brands.length === 0 ? (
-                   <p className="text-xs text-gray-400 italic">No brands found</p>
-                 ) : (
-                   brands.map(brand => (
+              <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <SlidersHorizontal size={18} className="text-emerald-500" />
+                Brands
+              </h3>
+              <div className="space-y-2">
+                {brands.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">No brands found</p>
+                ) : (
+                  brands.map(brand => (
                     <label key={brand.id} className="flex items-center gap-3 cursor-pointer group">
                       <div className="relative">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedBrands.includes(brand.name)} 
+                        <input
+                          type="checkbox"
+                          checked={selectedBrands.includes(brand.name)}
                           onChange={() => toggleBrand(brand.name)}
                           className="peer h-5 w-5 appearance-none rounded border-2 border-gray-200 checked:bg-emerald-500 checked:border-emerald-500 transition-all"
                         />
@@ -138,34 +248,34 @@ const Products: React.FC = () => {
                       </div>
                       <span className="text-sm font-medium text-gray-600 group-hover:text-emerald-500 transition-colors">{brand.name}</span>
                     </label>
-                   ))
-                 )}
-               </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Rating Filter */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-               <h3 className="font-bold text-gray-800 mb-4">Customer Rating</h3>
-               <div className="space-y-2">
-                 {[4, 3, 2, 1].map(stars => (
-                   <button 
-                     key={stars}
-                     onClick={() => setSelectedMinRating(stars)}
-                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${selectedMinRating === stars ? 'bg-amber-50 text-amber-700' : 'hover:bg-gray-50 text-gray-600'}`}
-                   >
-                     <div className="flex text-amber-400">
-                       {[...Array(5)].map((_, i) => (
-                         <Star key={i} size={14} fill={i < stars ? "currentColor" : "none"} className={i < stars ? "" : "text-gray-200"} />
-                       ))}
-                     </div>
-                     <span className="font-medium">& Up</span>
-                   </button>
-                 ))}
-               </div>
+              <h3 className="font-bold text-gray-800 mb-4">Customer Rating</h3>
+              <div className="space-y-2">
+                {[4, 3, 2, 1].map(stars => (
+                  <button
+                    key={stars}
+                    onClick={() => setSelectedMinRating(stars)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${selectedMinRating === stars ? 'bg-amber-50 text-amber-700' : 'hover:bg-gray-50 text-gray-600'}`}
+                  >
+                    <div className="flex text-amber-400">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={14} fill={i < stars ? "currentColor" : "none"} className={i < stars ? "" : "text-gray-200"} />
+                      ))}
+                    </div>
+                    <span className="font-medium">& Up</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Reset Action */}
-            <button 
+            <button
               onClick={resetFilters}
               className="w-full flex items-center justify-center gap-2 py-4 text-sm font-bold text-gray-400 hover:text-emerald-500 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all"
             >
@@ -178,10 +288,10 @@ const Products: React.FC = () => {
           <main className="flex-1 space-y-6">
             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-sm font-medium text-gray-500">
-                Showing <span className="font-bold text-gray-800">{filteredProducts.length}</span> results 
+                Showing <span className="font-bold text-gray-800">{filteredProducts.length}</span> results
                 {selectedCategory !== 'All' && <span> in <span className="text-emerald-500 font-bold">{selectedCategory}</span></span>}
               </p>
-              
+
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-gray-400 font-medium">Sort by:</span>

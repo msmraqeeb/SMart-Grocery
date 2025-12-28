@@ -146,7 +146,7 @@ export interface Banner {
   is_active: boolean;
 }
 
-export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users' | 'reports' | 'pages' | 'banners';
+export type AdminTab = 'products' | 'orders' | 'shipping' | 'settings' | 'attributes' | 'categories' | 'brands' | 'coupons' | 'reviews' | 'users' | 'reports' | 'pages' | 'banners' | 'layout';
 
 export interface StoreInfo {
   name: string;
@@ -158,5 +158,22 @@ export interface StoreInfo {
     facebook?: string;
     instagram?: string;
     twitter?: string;
+  };
+}
+
+export interface HomeSection {
+  id: string;
+  title: string;
+  type: 'slider' | 'grid' | 'grid-no-banner';
+  filterType: 'category' | 'sale' | 'featured' | 'all';
+  filterValue?: string;
+  sortOrder: number;
+  isActive: boolean;
+  banner?: {
+    title: string;
+    description: string;
+    imageUrl: string;
+    buttonText: string;
+    link: string;
   };
 }

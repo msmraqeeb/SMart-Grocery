@@ -1,10 +1,88 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight, Truck, Headphones, ShieldCheck, Award } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import { useStore } from '../context/StoreContext';
+import { HomeSection, Product } from '../types';
+
+const SliderSection: React.FC<{ section: HomeSection; products: Product[] }> = ({ section, products }) => {
+  const sliderId = `slider-${section.id}`;
+  return (
+    <section className="container mx-auto px-4 md:px-8 mb-16 relative group/slider">
+      <div className="flex justify-between items-end mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">{section.title}</h2>
+        <Link to={`/products?filter=${section.filterType}${section.filterValue ? `&value=${section.filterValue}` : ''}`} className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></Link>
+      </div>
+      <div className="relative">
+        <button
+          onClick={() => {
+            const container = document.getElementById(sliderId);
+            if (container) container.scrollBy({ left: -300, behavior: 'smooth' });
+          }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center text-gray-400 hover:text-[#00a651] z-10 opacity-0 group-hover/slider:opacity-100 transition-opacity disabled:opacity-0"
+        >
+          <ArrowRight size={20} className="rotate-180" />
+        </button>
+        <div id={sliderId} className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+          {products.map(product => (
+            <div key={product.id} className="min-w-[280px] md:min-w-[300px] snap-center">
+              <ProductCard product={product} />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            const container = document.getElementById(sliderId);
+            if (container) container.scrollBy({ left: 300, behavior: 'smooth' });
+          }}
+          className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center text-gray-400 hover:text-[#00a651] z-10 opacity-0 group-hover/slider:opacity-100 transition-opacity"
+        >
+          <ArrowRight size={20} />
+        </button>
+      </div>
+    </section>
+  );
+};
+
+const GridSection: React.FC<{ section: HomeSection; products: Product[] }> = ({ section, products }) => {
+  const isNoBanner = section.type === 'grid-no-banner';
+
+  return (
+    <section className="container mx-auto px-4 md:px-8 mb-16">
+      <div className="flex justify-between items-end mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">{section.title}</h2>
+        <Link to={`/products?filter=${section.filterType}${section.filterValue ? `&value=${section.filterValue}` : ''}`} className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></Link>
+      </div>
+
+      <div className={`grid grid-cols-1 ${isNoBanner ? '' : 'lg:grid-cols-4'} gap-6`}>
+        {section.banner && !isNoBanner && (
+          <div className="hidden lg:block bg-gradient-to-b from-[#00a651] to-[#008c44] rounded-xl p-8 relative overflow-hidden text-white h-full">
+            <h3 className="text-3xl font-bold mb-4 font-serif italic">{section.banner.title}</h3>
+            <p className="mb-8 text-emerald-100 opacity-90">{section.banner.description}</p>
+            <Link to={section.banner.link} className="bg-yellow-400 text-gray-900 px-6 py-2 rounded-full font-bold hover:bg-yellow-300 transition-colors w-fit flex items-center gap-2">
+              {section.banner.buttonText} ➝
+            </Link>
+            {section.banner.imageUrl && <img src={section.banner.imageUrl} alt="banner" className="absolute bottom-0 left-0 w-full h-1/2 object-cover opacity-30" />}
+          </div>
+        )}
+
+        <div className={`
+          ${!isNoBanner ? (section.banner ? 'lg:col-span-3' : 'lg:col-span-4') : ''} 
+          grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${isNoBanner ? '5' : (section.banner ? '3' : '4')} gap-6
+        `}>
+          {products.slice(0, isNoBanner ? 10 : (section.banner ? 6 : 8)).map(product => (
+            <ProductCard key={`${section.id}-${product.id}`} product={product} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+
 
 const Home: React.FC = () => {
-  const { products, categories, banners } = useStore();
+  const { products, banners, homeSections, categories } = useStore();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const sliderBanners = banners.filter(b => b.type === 'slider' && b.is_active);
@@ -19,9 +97,7 @@ const Home: React.FC = () => {
     return () => clearInterval(interval);
   }, [sliderBanners.length]);
 
-  const hotSale = products.slice(0, 4);
-  const popularItems = products.slice(0, 8);
-  const foodItems = products.filter(p => p.category === 'Vegetables & Fruit' || p.category === 'Meats & Seafood').slice(0, 5);
+
 
   return (
     <div className="w-full bg-white pb-20">
@@ -154,43 +230,60 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Hot Sale */}
-      <section className="container mx-auto px-4 md:px-8 mb-16">
-        <div className="flex justify-between items-end mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">Today's Hot Sale</h2>
-          <a href="#" className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></a>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {hotSale.map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      </section>
+      {/* Dynamic Home Sections */}
+      {homeSections
+        .filter(s => s.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(section => {
+          let items = products;
+          if (section.filterType === 'sale') items = items.filter(p => p.originalPrice && p.originalPrice > p.price);
+          else if (section.filterType === 'featured') items = items.filter(p => p.isFeatured);
+          else if (section.filterType === 'category' && section.filterValue) {
+            // Recursive category filtering
+            // 1. Find the target category object
+            const targetCategory = categories.find(c => c.name === section.filterValue);
+            if (targetCategory) {
+              // 2. Find all descendant category IDs
+              const getDescendantIds = (parentId: string): string[] => {
+                const children = categories.filter(c => c.parentId === parentId);
+                let ids = children.map(c => c.id);
+                children.forEach(c => {
+                  ids = [...ids, ...getDescendantIds(c.id)];
+                });
+                return ids;
+              };
+              const validCategoryIds = [targetCategory.id, ...getDescendantIds(targetCategory.id)];
 
-      {/* Popular Items (Split Layout) */}
-      <section className="container mx-auto px-4 md:px-8 mb-16">
-        <div className="flex justify-between items-end mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">Popular Items</h2>
-          <a href="#" className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></a>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Vertical Banner */}
-          <div className="hidden lg:block bg-gradient-to-b from-[#00a651] to-[#008c44] rounded-xl p-8 relative overflow-hidden text-white h-full">
-            <h3 className="text-3xl font-bold mb-4 font-serif italic">100% Fresh Vegetables and Authentic Products</h3>
-            <p className="mb-8 text-emerald-100 opacity-90">Get the best quality products at the most affordable prices.</p>
-            <button className="bg-yellow-400 text-gray-900 px-6 py-2 rounded-full font-bold hover:bg-yellow-300 transition-colors w-fit flex items-center gap-2">
-              Shop Now ➝
-            </button>
-            <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400" alt="fresh" className="absolute bottom-0 left-0 w-full h-1/2 object-cover opacity-30" />
-          </div>
-          {/* Grid */}
-          <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {popularItems.slice(0, 6).map(product => (
-              <ProductCard key={`pop-${product.id}`} product={product} />
-            ))}
-          </div>
-        </div>
-      </section>
+              // 3. Filter products whose category name matches any of the valid category names
+              // (Since products store category name as string, we map back to names)
+              const validCategoryNames = categories
+                .filter(c => validCategoryIds.includes(c.id))
+                .map(c => c.name);
+
+              items = items.filter(p => validCategoryNames.includes(p.category));
+            } else {
+              // Fallback if category object not found (legacy behavior)
+              items = items.filter(p => p.category === section.filterValue);
+            }
+          }
+
+          if (items.length === 0) {
+            return (
+              <section key={section.id} className="container mx-auto px-4 md:px-8 mb-16 opacity-50">
+                <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-gray-300 pl-4 mb-6">{section.title}</h2>
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-8 text-center">
+                  <p className="text-gray-400 font-bold mb-2">No items found for this section.</p>
+                  <p className="text-xs text-gray-400">Filter: {section.filterType} {section.filterValue ? `(${section.filterValue})` : ''}</p>
+                </div>
+              </section>
+            );
+          }
+
+
+          if (section.type === 'slider') return <SliderSection key={section.id} section={section} products={items} />;
+          if (section.type === 'grid' || section.type === 'grid-no-banner') return <GridSection key={section.id} section={section} products={items} />;
+          return null;
+        })}
 
       {/* Promo Banners */}
       <section className="container mx-auto px-4 md:px-8 mb-16">
