@@ -56,7 +56,7 @@ const Admin: React.FC = () => {
   });
 
   const [catForm, setCatForm] = useState({ name: '', parentId: '' as string | null, image: '' });
-  const [brandForm, setBrandForm] = useState({ name: '', logo_url: '' });
+  const [brandForm, setBrandForm] = useState({ name: '', slug: '', logo_url: '' });
 
   // Global Attributes Form State
   const [attrForm, setAttrForm] = useState({ name: '' });
@@ -720,7 +720,7 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
     setIsEditingOrder(false); setEditingOrderData(null);
     setProdForm({ name: '', basePrice: '', salePrice: '', category: '', description: '', shortDescription: '', images: [], unit: '', sku: '', brand: '', isFeatured: false, variants: [], tempAttributes: [] });
     setCatForm({ name: '', parentId: null, image: '' });
-    setBrandForm({ name: '', logo_url: '' });
+    setBrandForm({ name: '', slug: '', logo_url: '' });
     setAttrForm({ name: '' });
     setAttrValuesInput('');
     setCouponForm({ code: '', discountType: 'Fixed', discountValue: 0, minimumSpend: 0, expiryDate: '', status: 'Active', autoApply: false });
@@ -742,9 +742,30 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
     } catch (err: any) { alert(err.message); }
   };
 
+  const handleBrandLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `brand-${Math.random()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      setBrandForm(prev => ({ ...prev, logo_url: data.publicUrl }));
+    } catch (error: any) {
+      alert('Error uploading logo: ' + error.message);
+    }
+  };
+
   const handleBrandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const slug = brandForm.name.toLowerCase().trim().replace(/[\s_-]+/g, '-');
+    const slug = (brandForm.slug || brandForm.name).toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
     try {
       if (editingItem?.type === 'brand') await updateBrand(editingItem.data.id, { ...brandForm, slug });
       else await addBrand({ ...brandForm, slug });
@@ -1761,11 +1782,44 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
               </div>
               {(isAdding === 'brand' || editingItem?.type === 'brand') && (
                 <form onSubmit={handleBrandSubmit} className="bg-white rounded-2xl border border-emerald-100 p-8 shadow-xl space-y-6">
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Brand Name</label><input required value={brandForm.name} onChange={e => setBrandForm({ ...brandForm, name: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" /></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Brand Name</label>
+                        <input required value={brandForm.name} onChange={e => {
+                          const name = e.target.value;
+                          const slug = name.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
+                          setBrandForm({ ...brandForm, name, slug: brandForm.slug || isAdding === 'brand' ? slug : brandForm.slug });
+                        }} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Slug (URL Path)</label>
+                        <input value={brandForm.slug} onChange={e => setBrandForm({ ...brandForm, slug: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold text-emerald-600" />
+                      </div>
+                    </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Logo URL (Optional)</label>
-                      <input value={brandForm.logo_url} onChange={e => setBrandForm({ ...brandForm, logo_url: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-5 py-3.5 text-sm font-bold" />
+                      <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Brand Logo (Optional)</label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-24 h-24 bg-gray-50 rounded-xl border border-slate-200 flex items-center justify-center relative overflow-hidden group">
+                          {brandForm.logo_url ? (
+                            <>
+                              <img src={brandForm.logo_url} className="w-full h-full object-contain p-2" alt="logo preview" />
+                              <button type="button" onClick={() => setBrandForm({ ...brandForm, logo_url: '' })} className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <X size={20} />
+                              </button>
+                            </>
+                          ) : (
+                            <ImageIcon className="text-gray-300" size={32} />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <label className="cursor-pointer bg-[#004d40] text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-black transition-colors flex items-center gap-2 w-fit">
+                            <Upload size={14} /> Upload Logo
+                            <input type="file" className="hidden" accept="image/*" onChange={handleBrandLogoUpload} />
+                          </label>
+                          <p className="text-[10px] text-gray-400 mt-2 font-medium">Recommended size: 200x200px. <br /> Transparent PNG works best.</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3"><button type="button" onClick={closeForms} className="px-6 py-3 text-slate-400 font-bold uppercase text-[11px]">Cancel</button><button type="submit" className="bg-emerald-600 text-white px-10 py-3 rounded-xl font-black uppercase text-[11px]">Save Brand</button></div>
@@ -1779,7 +1833,7 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
                       <span className="font-bold text-gray-700">{brand.name}</span>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { setEditingItem({ type: 'brand', data: brand }); setBrandForm({ name: brand.name, logo_url: brand.logo_url || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg"><Pencil size={16} /></button>
+                      <button onClick={() => { setEditingItem({ type: 'brand', data: brand }); setBrandForm({ name: brand.name, slug: brand.slug || '', logo_url: brand.logo_url || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg"><Pencil size={16} /></button>
                       <button onClick={() => deleteBrand(brand.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={16} /></button>
                     </div>
                   </div>
@@ -2033,6 +2087,39 @@ CREATE POLICY "Public read pages" ON public.pages FOR SELECT USING (is_published
                   <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Facebook URL</label><input value={storeForm.socials?.facebook || ''} onChange={e => setStoreForm({ ...storeForm, socials: { ...storeForm.socials, facebook: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="https://facebook.com/..." /></div>
                     <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Instagram URL</label><input value={storeForm.socials?.instagram || ''} onChange={e => setStoreForm({ ...storeForm, socials: { ...storeForm.socials, instagram: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="https://instagram.com/..." /></div>
+                  </div>
+
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mt-6">Footer Settings</h4>
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Footer Description</label>
+                      <textarea value={storeForm.footer_description || ''} onChange={e => setStoreForm({ ...storeForm, footer_description: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all min-h-[100px]" placeholder="Brief description about your store..." />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">iOS App Link</label><input value={storeForm.app_links?.ios || ''} onChange={e => setStoreForm({ ...storeForm, app_links: { ...storeForm.app_links, ios: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="App Store URL" /></div>
+                      <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Android App Link</label><input value={storeForm.app_links?.android || ''} onChange={e => setStoreForm({ ...storeForm, app_links: { ...storeForm.app_links, android: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="Play Store URL" /></div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Company Quick Links</label>
+                      {storeForm.footer_links?.map((link, idx) => (
+                        <div key={idx} className="flex gap-4">
+                          <input value={link.label} onChange={e => {
+                            const newLinks = [...(storeForm.footer_links || [])];
+                            newLinks[idx] = { ...newLinks[idx], label: e.target.value };
+                            setStoreForm({ ...storeForm, footer_links: newLinks });
+                          }} className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold outline-none" placeholder="Label" />
+                          <input value={link.url} onChange={e => {
+                            const newLinks = [...(storeForm.footer_links || [])];
+                            newLinks[idx] = { ...newLinks[idx], url: e.target.value };
+                            setStoreForm({ ...storeForm, footer_links: newLinks });
+                          }} className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold outline-none" placeholder="URL" />
+                          <button onClick={() => setStoreForm({ ...storeForm, footer_links: storeForm.footer_links?.filter((_, i) => i !== idx) })} className="text-red-400 hover:text-red-500 bg-red-50 p-3 rounded-xl"><Trash2 size={16} /></button>
+                        </div>
+                      ))}
+                      <button onClick={() => setStoreForm({ ...storeForm, footer_links: [...(storeForm.footer_links || []), { label: '', url: '' }] })} className="w-full py-3 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-gray-500 font-bold text-xs uppercase tracking-widest hover:bg-white hover:border-blue-200 hover:text-blue-500 transition-all flex items-center justify-center gap-2"><Plus size={14} /> Add Link</button>
+                    </div>
                   </div>
                 </div>
                 <div className="pt-6 border-t flex justify-end"><button onClick={() => updateStoreInfo(storeForm)} className="bg-blue-600 text-white font-black px-12 py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-lg shadow-blue-50 hover:bg-blue-700 transition-all">Update Identity</button></div>

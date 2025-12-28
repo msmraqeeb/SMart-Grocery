@@ -4,7 +4,7 @@ import {
     Heart, ShieldCheck, Zap, User, Star, Truck,
     Leaf, Award, Clock, MapPin, Phone, CreditCard,
     Gift, Smile, Sun, Droplets, ShoppingBasket, Tag,
-    Globe, Anchor, Coffee, Package, Layers, Info, CheckCircle
+    Globe, Anchor, Coffee, Package, Layers, Info, CheckCircle, Mail, FileText
 } from 'lucide-react';
 
 // --- Icon Mapping ---
@@ -12,7 +12,7 @@ const ICONS: Record<string, any> = {
     Heart, ShieldCheck, Zap, User, Star, Truck,
     Leaf, Award, Clock, MapPin, Phone, CreditCard,
     Gift, Smile, Sun, Droplets, ShoppingBasket, Tag,
-    Globe, Anchor, Coffee, Package, Layers, Info, CheckCircle
+    Globe, Anchor, Coffee, Package, Layers, Info, CheckCircle, Mail, FileText
 };
 
 export const StorySection: React.FC<{ data: any }> = ({ data }) => {
@@ -124,6 +124,95 @@ export const CtaSection: React.FC<{ data: any }> = ({ data }) => {
                             {data.button2_text}
                         </Link>
                     )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const ContactSection: React.FC<{ data: any }> = ({ data }) => {
+    return (
+        <div>
+            <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+                <h2 className="text-3xl font-black text-gray-900">{data.title}</h2>
+                <p className="text-gray-500 font-medium">{data.subtitle}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {data.items?.map((item: any, idx: number) => {
+                    const Icon = ICONS[item.icon] || Info;
+                    return (
+                        <div key={idx} className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center group">
+                            <div className="w-16 h-16 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-gray-600 mb-6 mx-auto group-hover:bg-emerald-500 group-hover:text-white group-hover:border-emerald-500 transition-all duration-300">
+                                <Icon size={32} strokeWidth={1.5} />
+                            </div>
+                            <h3 className="text-lg font-black text-gray-900 mb-2">{item.label}</h3>
+                            <p className="text-gray-500 leading-relaxed text-sm whitespace-pre-line">
+                                {item.value}
+                            </p>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+export const FaqContactSection: React.FC<{ data: any }> = ({ data }) => {
+    const [openIndex, setOpenIndex] = React.useState<number | null>(0);
+
+    return (
+        <div className="flex flex-col lg:flex-row gap-16 items-start">
+            {/* FAQ Side */}
+            <div className="flex-1 w-full space-y-8">
+                <h2 className="text-3xl font-black text-gray-900">{data.title}</h2>
+                <div className="space-y-4">
+                    {data.faqs?.map((faq: any, idx: number) => {
+                        const isOpen = openIndex === idx;
+                        return (
+                            <div key={idx} className={`border border-gray-100 rounded-2xl overflow-hidden transition-all duration-300 ${isOpen ? 'bg-emerald-50/50 border-emerald-100' : 'bg-white'}`}>
+                                <button
+                                    onClick={() => setOpenIndex(isOpen ? null : idx)}
+                                    className="w-full flex justify-between items-center p-6 text-left"
+                                >
+                                    <span className={`font-bold text-lg ${isOpen ? 'text-emerald-800' : 'text-gray-700'}`}>{faq.question}</span>
+                                    <div className={`p-2 rounded-full transition-colors ${isOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-50 text-gray-400'}`}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </div>
+                                </button>
+                                <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="p-6 pt-0 text-gray-600 leading-relaxed">
+                                        {faq.answer}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Contact Form Side */}
+            <div className="flex-1 w-full">
+                <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-100/50">
+                    <h2 className="text-3xl font-black text-gray-900 mb-8">{data.formTitle}</h2>
+                    <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); alert('Message sent!'); }}>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase ml-1">Your Name</label>
+                            <input type="text" className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl font-bold text-gray-800 focus:outline-none focus:border-emerald-500 transition-colors" placeholder="John Doe" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase ml-1">Your Email</label>
+                            <input type="email" className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl font-bold text-gray-800 focus:outline-none focus:border-emerald-500 transition-colors" placeholder="john@example.com" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 uppercase ml-1">Your Message</label>
+                            <textarea className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl text-gray-800 focus:outline-none focus:border-emerald-500 transition-colors h-32 resize-none" placeholder="How can we help you?" />
+                        </div>
+                        <button type="submit" className="w-auto px-10 py-4 bg-[#10B981] text-white font-black uppercase tracking-widest text-xs rounded-xl hover:bg-emerald-600 transition-all hover:scale-105 shadow-lg shadow-emerald-200">
+                            Send Now
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

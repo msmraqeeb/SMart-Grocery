@@ -159,6 +159,9 @@ export interface StoreInfo {
     instagram?: string;
     twitter?: string;
   };
+  footer_description?: string;
+  footer_links?: { label: string; url: string }[];
+  app_links?: { ios?: string; android?: string };
 }
 
 export interface HomeSection {

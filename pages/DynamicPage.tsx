@@ -2,11 +2,11 @@ import React, { useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import DOMPurify from 'dompurify';
-import { StorySection, ValuesGrid, HeroSection, CtaSection } from '../components/PageBlocks';
+import { StorySection, ValuesGrid, HeroSection, CtaSection, ContactSection, FaqContactSection } from '../components/PageBlocks';
 
 interface Block {
     id: string;
-    type: 'story_section' | 'values_grid' | 'rich_text' | 'hero_section' | 'cta_section';
+    type: 'story_section' | 'values_grid' | 'rich_text' | 'hero_section' | 'cta_section' | 'contact_section' | 'faq_contact_section';
     data: any;
 }
 
@@ -77,6 +77,8 @@ const DynamicPage: React.FC = () => {
                             <div className="bg-white rounded-[2.5rem] p-8 md:p-16 shadow-sm border border-gray-100/50">
                                 {block.type === 'story_section' && <StorySection data={block.data} />}
                                 {block.type === 'values_grid' && <ValuesGrid data={block.data} />}
+                                {block.type === 'contact_section' && <ContactSection data={block.data} />}
+                                {block.type === 'faq_contact_section' && <FaqContactSection data={block.data} />}
                                 {block.type === 'cta_section' && <CtaSection data={block.data} />}
                                 {block.type === 'rich_text' && (
                                     <div

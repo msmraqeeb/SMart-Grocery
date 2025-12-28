@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 
 const Footer: React.FC = () => {
-  const { storeInfo } = useStore();
+  const { storeInfo, categories } = useStore();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -28,7 +28,7 @@ const Footer: React.FC = () => {
                 </div>
               )}
             </div>
-            <p className="leading-relaxed">{storeInfo.name} - Your one door-step solution for groceries and daily needs. Freshness guaranteed.</p>
+            <p className="leading-relaxed">{storeInfo.footer_description || `${storeInfo.name} - Your one door-step solution for groceries and daily needs. Freshness guaranteed.`}</p>
             <div className="space-y-3 mt-4">
               <div className="flex items-start gap-3">
                 <MapPin className="text-emerald-500 shrink-0" size={18} />
@@ -49,10 +49,19 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-white font-bold text-lg mb-6">Company</h3>
             <ul className="space-y-3">
-              <li><Link to="/aboutus" className="hover:text-emerald-500 transition-colors">About Us</Link></li>
-              <li><a href="#" className="hover:text-emerald-500 transition-colors">Delivery Information</a></li>
-              <li><a href="#" className="hover:text-emerald-500 transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-emerald-500 transition-colors">Terms & Conditions</a></li>
+              {(storeInfo.footer_links && storeInfo.footer_links.length > 0) ? (
+                storeInfo.footer_links.map((link, idx) => (
+                  <li key={idx}><Link to={link.url} className="hover:text-emerald-500 transition-colors">{link.label}</Link></li>
+                ))
+              ) : (
+                <>
+                  <li><Link to="/about-us" className="hover:text-emerald-500 transition-colors">About Us</Link></li>
+                  <li><Link to="/contact-us" className="hover:text-emerald-500 transition-colors">Contact Us</Link></li>
+                  <li><a href="#" className="hover:text-emerald-500 transition-colors">Delivery Information</a></li>
+                  <li><a href="#" className="hover:text-emerald-500 transition-colors">Privacy Policy</a></li>
+                  <li><a href="#" className="hover:text-emerald-500 transition-colors">Terms & Conditions</a></li>
+                </>
+              )}
             </ul>
           </div>
 
@@ -60,10 +69,16 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-white font-bold text-lg mb-6">Category</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="hover:text-emerald-500 transition-colors">Dairy & Bakery</a></li>
-              <li><a href="#" className="hover:text-emerald-500 transition-colors">Fruits & Vegetables</a></li>
-              <li><a href="#" className="hover:text-emerald-500 transition-colors">Snack & Spice</a></li>
-              <li><a href="#" className="hover:text-emerald-500 transition-colors">Juice & Drinks</a></li>
+              {categories
+                .filter(cat => !cat.parentId)
+                .slice(0, 5)
+                .map(cat => (
+                  <li key={cat.id}>
+                    <Link to={`/products?category=${encodeURIComponent(cat.name)}`} className="hover:text-emerald-500 transition-colors">
+                      {cat.name}
+                    </Link>
+                  </li>
+                ))}
             </ul>
           </div>
 
@@ -75,12 +90,23 @@ const Footer: React.FC = () => {
               {storeInfo.socials?.instagram && <a href={storeInfo.socials.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-500 transition-colors cursor-pointer"><Instagram size={18} /></a>}
               {(!storeInfo.socials?.facebook && !storeInfo.socials?.instagram) && <span className="text-gray-500 text-sm">No social links configured.</span>}
             </div>
-            <div className="flex items-center gap-2 bg-gray-800 px-3 py-2 rounded-lg border border-gray-700 cursor-pointer hover:border-emerald-500 transition-all">
-              <Smartphone size={24} className="text-white" />
-              <div className="flex flex-col">
-                <span className="text-[10px] leading-tight text-gray-400">Download on</span>
-                <span className="text-xs font-bold text-white">App Store</span>
-              </div>
+
+            <div className="flex gap-2">
+              {storeInfo.app_links?.android && (
+                <a href={storeInfo.app_links.android} target="_blank" rel="noopener noreferrer" className="block w-28 hover:opacity-90 transition-opacity">
+                  <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/google-play.svg" alt="Get it on Google Play" className="w-full h-auto" />
+                </a>
+              )}
+              {storeInfo.app_links?.ios && (
+                <a href={storeInfo.app_links.ios} target="_blank" rel="noopener noreferrer" className="block w-28 hover:opacity-90 transition-opacity">
+                  <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/app-store.svg" alt="Download on App Store" className="w-full h-auto" />
+                </a>
+              )}
+              {!storeInfo.app_links?.ios && !storeInfo.app_links?.android && (
+                <div className="block w-28 opacity-50 cursor-not-allowed">
+                  <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/google-play.svg" alt="Get it on Google Play" className="w-full h-auto" />
+                </div>
+              )}
             </div>
           </div>
         </div>
