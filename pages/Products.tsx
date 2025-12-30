@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import ProductCard from '../components/ProductCard';
-import { Filter, SlidersHorizontal, ChevronRight, ChevronDown, Search, RotateCcw, Check, Star } from 'lucide-react';
+import { Filter, SlidersHorizontal, ChevronRight, ChevronDown, Search, RotateCcw, Check, Star, Coins } from 'lucide-react';
 import { Category } from '../types';
 
 interface CategoryNode extends Category {
@@ -140,6 +140,81 @@ const Products: React.FC = () => {
     }
   }, [location.search]);
 
+  // Price Range Logic
+  const [minMax, setMinMax] = useState<[number, number]>([0, 10000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
+
+  // Initialize price range based on actual product data
+  useEffect(() => {
+    if (products.length > 0) {
+      const prices = products.map(p => p.price);
+      const min = Math.floor(Math.min(...prices));
+      const max = Math.ceil(Math.max(...prices));
+      setMinMax([min, max]);
+      setPriceRange([min, max]); // Initialize selection to full range
+    }
+  }, [products]);
+
+  // Dynamic Attribute Logic
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string[]>>({});
+
+  // Reset attributes when category changes to avoid stale filters
+  useEffect(() => {
+    setSelectedAttributes({});
+  }, [selectedCategory]);
+
+  const availableAttributes = useMemo(() => {
+    // 1. Get products in current category context
+    const getDescendantsOnly = (catName: string): string[] => {
+      if (catName === 'All') return [];
+      const currentCat = categories.find(c => c.name === catName);
+      if (!currentCat) return [catName];
+      let names = [catName];
+      categories.filter(c => c.parentId === currentCat.id).forEach(child => {
+        names = [...names, ...getDescendantsOnly(child.name)];
+      });
+      return names;
+    };
+    const filterCategories = selectedCategory === 'All' ? [] : getDescendantsOnly(selectedCategory);
+
+    const categoryProducts = products.filter(p => {
+      const categoryMatch = selectedCategory === 'All' || filterCategories.includes(p.category);
+      return categoryMatch;
+    });
+
+    // 2. Extract attributes from variants
+    const attrs: Record<string, Set<string>> = {};
+    categoryProducts.forEach(p => {
+      if (p.variants) {
+        p.variants.forEach(v => {
+          Object.entries(v.attributeValues).forEach(([key, val]) => {
+            if (!attrs[key]) attrs[key] = new Set();
+            attrs[key].add(val);
+          });
+        });
+      }
+    });
+
+    // 3. Convert Sets to sorted arrays
+    return Object.entries(attrs).reduce((acc, [key, valSet]) => {
+      acc[key] = Array.from(valSet).sort();
+      return acc;
+    }, {} as Record<string, string[]>);
+  }, [products, categories, selectedCategory]);
+
+  const toggleAttribute = (attrName: string, value: string) => {
+    setSelectedAttributes(prev => {
+      const currentValues = prev[attrName] || [];
+      const newValues = currentValues.includes(value)
+        ? currentValues.filter(v => v !== value)
+        : [...currentValues, value];
+
+      const newState = { ...prev, [attrName]: newValues };
+      if (newValues.length === 0) delete newState[attrName];
+      return newState;
+    });
+  };
+
   const filteredProducts = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
     const showSaleOnly = searchParams.get('filter') === 'sale';
@@ -177,9 +252,20 @@ const Products: React.FC = () => {
 
       const saleMatch = !showSaleOnly || (p.originalPrice !== undefined && p.originalPrice > p.price);
 
-      return searchMatch && categoryMatch && brandMatch && ratingMatch && saleMatch;
+      // Price Match Logic
+      const priceMatch = p.price >= priceRange[0] && p.price <= priceRange[1];
+
+      // Attribute Match Logic
+      const attributeMatch = Object.entries(selectedAttributes).every(([attrName, selectedValues]) => {
+        if (!p.variants) return false;
+        return p.variants.some(v =>
+          v.attributeValues[attrName] && selectedValues.includes(v.attributeValues[attrName])
+        );
+      });
+
+      return searchMatch && categoryMatch && brandMatch && ratingMatch && saleMatch && attributeMatch && priceMatch;
     });
-  }, [products, searchQuery, selectedCategory, selectedBrands, selectedMinRating, reviews, location.search, categories]);
+  }, [products, searchQuery, selectedCategory, selectedBrands, selectedMinRating, reviews, location.search, categories, selectedAttributes, priceRange]);
 
   const toggleBrand = (brandName: string) => {
     setSelectedBrands(prev =>
@@ -191,6 +277,12 @@ const Products: React.FC = () => {
     setSelectedCategory('All');
     setSelectedBrands([]);
     setSelectedMinRating(null);
+    setSelectedAttributes({});
+    if (products.length > 0) {
+      setPriceRange(minMax);
+    } else {
+      setPriceRange([0, 10000]);
+    }
   };
 
   return (
@@ -225,6 +317,59 @@ const Products: React.FC = () => {
               </div>
             </div>
 
+            {/* Price Range Filter */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+              <h3 className="font-bold text-gray-800 mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Coins size={18} className="text-emerald-500" />
+                  Price Range
+                </div>
+                <span className="text-xs font-black text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
+                  ৳{priceRange[0]} - ৳{priceRange[1]}
+                </span>
+              </h3>
+
+              <div className="relative h-2 w-full bg-gray-100 rounded-full mb-6">
+                {/* Track Fill */}
+                <div
+                  className="absolute h-full bg-emerald-500 rounded-full"
+                  style={{
+                    left: `${((priceRange[0] - minMax[0]) / (minMax[1] - minMax[0])) * 100}%`,
+                    right: `${100 - ((priceRange[1] - minMax[0]) / (minMax[1] - minMax[0])) * 100}%`
+                  }}
+                ></div>
+
+                {/* Range Inputs */}
+                <input
+                  type="range"
+                  min={minMax[0]}
+                  max={minMax[1]}
+                  value={priceRange[0]}
+                  onChange={(e) => {
+                    const val = Math.min(Number(e.target.value), priceRange[1] - 1);
+                    setPriceRange([val, priceRange[1]]);
+                  }}
+                  className="absolute w-full h-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:cursor-pointer outline-none z-30"
+                />
+                <input
+                  type="range"
+                  min={minMax[0]}
+                  max={minMax[1]}
+                  value={priceRange[1]}
+                  onChange={(e) => {
+                    const val = Math.max(Number(e.target.value), priceRange[0] + 1);
+                    setPriceRange([priceRange[0], val]);
+                  }}
+                  className="absolute w-full h-full top-0 left-0 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:cursor-pointer outline-none z-40"
+                />
+              </div>
+
+              <div className="flex justify-between text-xs font-bold text-gray-400">
+                <span>৳{minMax[0]}</span>
+                <span>৳{minMax[1]}</span>
+              </div>
+            </div>
+
             {/* Brand Filter */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -252,6 +397,32 @@ const Products: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Dynamic Attribute Filter */}
+            {Object.entries(availableAttributes).map(([attrName, values]) => (
+              <div key={attrName} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm animate-in fade-in duration-500">
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  {attrName}
+                </h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                  {values.map(val => (
+                    <label key={val} className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={selectedAttributes[attrName]?.includes(val) || false}
+                          onChange={() => toggleAttribute(attrName, val)}
+                          className="peer h-5 w-5 appearance-none rounded border-2 border-gray-200 checked:bg-emerald-500 checked:border-emerald-500 transition-all"
+                        />
+                        <Check size={14} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-600 group-hover:text-emerald-500 transition-colors">{val}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
 
             {/* Rating Filter */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
