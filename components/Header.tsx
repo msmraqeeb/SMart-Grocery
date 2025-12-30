@@ -180,6 +180,12 @@ const Header: React.FC = () => {
             >
               My Account
             </Link>
+            <Link
+              to="/blog"
+              className={`${location.pathname.startsWith('/blog') ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors`}
+            >
+              Blog
+            </Link>
             {isAdmin && (
               <Link
                 to="/admin"

@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import CartSidebar from './components/CartSidebar';
@@ -13,6 +13,8 @@ import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
 import ProductDetails from './pages/ProductDetails';
 import Login from './pages/Login';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
 
 import DynamicPage from './pages/DynamicPage';
 import { StoreProvider, useStore } from './context/StoreContext';
@@ -44,6 +46,8 @@ const AppContent: React.FC = () => {
           <Route path="/product/:slug" element={<ProductDetails />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
 
           <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/login" />} />
           <Route path="/cart" element={<Cart />} />
@@ -61,9 +65,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <StoreProvider>
-      <HashRouter>
+      <BrowserRouter>
         <AppContent />
-      </HashRouter>
+      </BrowserRouter>
     </StoreProvider>
   );
 };

@@ -1,5 +1,70 @@
 
-import { Product, Category, Order } from './types';
+import { Product, Category, Order, BlogPost } from './types';
+
+export const BLOG_POSTS: BlogPost[] = [
+  {
+    id: '1',
+    title: '5 Tips for Fresher Vegetables',
+    excerpt: 'Learn how to keep your vegetables fresh for longer with these simple storage hacks.',
+    content: `
+      <p>Keeping vegetables fresh can be a challenge. Here are 5 tips to help you extend the life of your produce:</p>
+      <h3>1. Store in the right place</h3>
+      <p>Some vegetables like potatoes and onions should be stored in a cool, dark place, while leafy greens belong in the refrigerator.</p>
+      <h3>2. Use the crisping drawer</h3>
+      <p>Your refrigerator's crisping drawer is designed to maintain the optimal humidity for fruits and vegetables.</p>
+      <h3>3. Keep away from ethylene producers</h3>
+      <p>Fruits like apples and bananas produce ethylene gas, which can cause other produce to ripen faster. Store them separately.</p>
+      <h3>4. Don't wash until ready to eat</h3>
+      <p>Moisture can promote mold growth. Wash your veggies right before you plan to cook or eat them.</p>
+      <h3>5. Freeze what you can't use</h3>
+      <p>If you have too many vegetables, blanch and freeze them for later use in soups and stews.</p>
+    `,
+    author: 'Sarah Green',
+    date: 'Oct 15, 2023',
+    imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+    slug: '5-tips-for-fresher-vegetables',
+    tags: ['Tips', 'Vegetables', 'Kitchen']
+  },
+  {
+    id: '2',
+    title: 'The Benefits of Organic Food',
+    excerpt: 'Discover why choosing organic can be better for your health and the environment.',
+    content: `
+      <p>Organic food has become increasingly popular in recent years. But what exactly is it, and is it worth the extra cost?</p>
+      <h3>Fewer Pesticides</h3>
+      <p>Organic farming practices strictly limit the use of synthetic pesticides, which can be harmful to both humans and the environment.</p>
+      <h3>Better for the Soil</h3>
+      <p>Organic farming focuses on building healthy soil through crop rotation and natural fertilizers, which leads to more sustainable agriculture.</p>
+      <h3>More Nutrients?</h3>
+      <p>Some studies suggest that organic crops may contain higher levels of certain antioxidants and nutrients compared to conventionally grown counterparts.</p>
+    `,
+    author: 'Mike Fields',
+    date: 'Oct 10, 2023',
+    imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+    slug: 'benefits-of-organic-food',
+    tags: ['Organic', 'Health', 'Environment']
+  },
+  {
+    id: '3',
+    title: 'Quick & Healthy Breakfast Ideas',
+    excerpt: 'Start your day right with these delicious and nutritious breakfast recipes.',
+    content: `
+      <p>Breakfast is the most important meal of the day. Here are a few quick ideas:</p>
+      <ul>
+        <li><strong>Oatmeal with Berries:</strong> A classic for a reason. Oats provide fiber, while berries add antioxidants.</li>
+        <li><strong>Avocado Toast:</strong> Whole grain toast topped with mashed avocado and a poached egg.</li>
+        <li><strong>Greek Yogurt Parfait:</strong> Layers of yogurt, granola, and fresh fruit.</li>
+        <li><strong>Smoothie Bowl:</strong> Blend your favorite fruits with spinach and protein powder for a power-packed start.</li>
+      </ul>
+    `,
+    author: 'Chef Alex',
+    date: 'Oct 05, 2023',
+    imageUrl: 'https://images.unsplash.com/photo-1493770348161-369560ae357d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+    slug: 'quick-healthy-breakfast-ideas',
+    tags: ['Recipes', 'Breakfast', 'Healthy']
+  }
+];
+
 
 export const THEME_COLOR = "emerald"; // mapped to tailwind classes
 export const PRIMARY_BG = "bg-emerald-500";

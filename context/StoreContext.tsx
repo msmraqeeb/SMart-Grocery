@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
-import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo, Page, Banner, HomeSection } from '../types';
+import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo, Page, Banner, HomeSection, BlogPost } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface StoreContextType {
@@ -14,6 +14,10 @@ interface StoreContextType {
   users: UserProfile[];
   addresses: Address[];
   pages: Page[];
+  blogPosts: BlogPost[];
+  addBlogPost: (post: Omit<BlogPost, 'id' | 'date'>) => Promise<void>;
+  updateBlogPost: (id: string, post: Partial<BlogPost>) => Promise<void>;
+  deleteBlogPost: (id: string) => Promise<void>;
   banners: Banner[];
   addBanner: (banner: Omit<Banner, 'id'>) => Promise<void>;
 
@@ -99,6 +103,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [pages, setPages] = useState<Page[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [homeSections, setHomeSections] = useState<HomeSection[]>([
     {
       id: 'hot-sale',
@@ -226,6 +231,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // Fetch banners separately to avoid blocking
       const bannerRes = await supabase.from('banners').select('*').order('sort_order', { ascending: true });
+      const blogRes = await supabase.from('blog_posts').select('*').order('created_at', { ascending: false });
 
       if (pd.data) setProducts(pd.data.map(mapProduct));
       if (cat.data) setCategories(cat.data.map(c => ({ id: String(c.id), name: c.name, image: c.image_url || '', slug: c.slug, parentId: c.parent_id ? String(c.parent_id) : null, itemCount: Number(c.item_count || 0) })));
@@ -253,6 +259,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         link: b.link,
         sort_order: b.sort_order,
         is_active: b.is_active
+      })));
+      if (blogRes.data) setBlogPosts(blogRes.data.map(p => ({
+        id: String(p.id),
+        title: p.title,
+        excerpt: p.excerpt,
+        content: p.content,
+        author: p.author,
+        date: new Date(p.created_at).toLocaleDateString(),
+        imageUrl: p.image_url,
+        slug: p.slug,
+        tags: p.tags || []
       })));
 
       if (pd.data) setProducts(pd.data.map(mapProduct));
@@ -476,7 +493,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <StoreContext.Provider value={{
-      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, pages, banners, homeSections, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
+      products, categories, brands, orders, attributes, coupons, reviews, users, addresses, pages, blogPosts, banners, homeSections, wishlist, user, userProfile, shippingSettings, storeInfo, appliedCoupon, cart, isAdmin, adminTab, isCartOpen, loading,
 
       setAdminTab: (tab: AdminTab) => setAdminTab(tab), toggleAdmin: () => { }, addToCart, removeFromCart: (id) => setCart(cart.filter(i => (i.selectedVariantId ? `${i.id}-${i.selectedVariantId}` : i.id) !== id)),
       addHomeSection: async (section) => {
@@ -712,6 +729,38 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           console.error("Supabase RLS Error:", error);
           throw error;
         }
+        await fetchData(user);
+      },
+      addBlogPost: async (p) => {
+        const { error } = await supabase.from('blog_posts').insert([{
+          title: p.title,
+          excerpt: p.excerpt,
+          content: p.content,
+          author: p.author,
+          image_url: p.imageUrl,
+          slug: p.slug,
+          tags: p.tags
+        }]);
+        if (error) throw new Error(error.message);
+        await fetchData(user);
+      },
+      updateBlogPost: async (id, p) => {
+        const updates: any = {};
+        if (p.title) updates.title = p.title;
+        if (p.excerpt) updates.excerpt = p.excerpt;
+        if (p.content) updates.content = p.content;
+        if (p.author) updates.author = p.author;
+        if (p.imageUrl) updates.image_url = p.imageUrl;
+        if (p.slug) updates.slug = p.slug;
+        if (p.tags) updates.tags = p.tags;
+
+        const { error } = await supabase.from('blog_posts').update(updates).eq('id', id);
+        if (error) throw new Error(error.message);
+        await fetchData(user);
+      },
+      deleteBlogPost: async (id) => {
+        const { error } = await supabase.from('blog_posts').delete().eq('id', id);
+        if (error) throw new Error(error.message);
         await fetchData(user);
       },
       deleteBanner: async (id) => {
