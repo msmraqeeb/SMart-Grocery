@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Search, ShoppingCart, User, Phone, ChevronDown, LogOut, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, User, Phone, ChevronDown, LogOut, ChevronRight, Menu, X } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Category } from '../types';
@@ -46,8 +46,63 @@ const CategoryMenuItem: React.FC<{ category: CategoryNode }> = ({ category }) =>
   );
 };
 
+const MobileCategoryItem: React.FC<{ category: CategoryNode; level: number; onClose: () => void }> = ({ category, level, onClose }) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const hasChildren = category.children && category.children.length > 0;
+
+  return (
+    <div>
+      <div
+        className={`flex items-center justify-between py-2 text-gray-600 hover:text-[#00a651] transition-colors cursor-pointer ${level === 0 ? 'px-4' : 'pr-4'}`}
+        style={{ paddingLeft: level === 0 ? '16px' : `${level * 16 + 16}px` }}
+        onClick={(e) => {
+          if (hasChildren) {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          } else {
+            // Let the Link click propagate
+          }
+        }}
+      >
+        {hasChildren ? (
+          <div className="flex items-center justify-between w-full select-none">
+            <span className={`text-sm ${level === 0 ? 'font-medium' : ''}`}>{category.name}</span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform duration-200 text-gray-400 ${isExpanded ? 'rotate-180' : ''}`}
+            />
+          </div>
+        ) : (
+          <Link
+            to={`/products?category=${encodeURIComponent(category.name)}`}
+            className="flex items-center w-full text-sm"
+            onClick={onClose}
+          >
+            {/* Bullet point for leaf nodes */}
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 mr-2 flex-shrink-0"></span>
+            {category.name}
+          </Link>
+        )}
+      </div>
+
+      {/* Render Children if Expanded */}
+      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        {hasChildren && category.children.map((child: any) => (
+          <MobileCategoryItem
+            key={child.id}
+            category={child}
+            level={level + 1}
+            onClose={onClose}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const Header: React.FC = () => {
-  const { cart, isAdmin, user, signOut, searchQuery, setSearchQuery, openCart, storeInfo, categories, products, addToCart } = useStore();
+  const { cart, isAdmin, user, signOut, searchQuery, setSearchQuery, openCart, storeInfo, categories, products, addToCart, userProfile } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -121,7 +176,7 @@ const Header: React.FC = () => {
                 className="md:hidden text-white p-1"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
-                {isMobileMenuOpen ? <LogOut size={24} className="rotate-180" /> : <ChevronDown size={28} className="rotate-[-90deg]" />}
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
 
               {/* Logo */}
@@ -183,7 +238,7 @@ const Header: React.FC = () => {
                 <div className="absolute top-full left-0 w-full bg-white shadow-xl rounded-b-lg mt-1 border border-gray-100 divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
                   {searchResults.map(product => (
                     <div key={product.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors group cursor-pointer">
-                      <Link to={`/ products ? search = ${encodeURIComponent(product.name)} `} className="flex items-center gap-3 flex-1 min-w-0" onClick={() => setShowResults(false)}>
+                      <Link to={`/product/${product.slug}`} className="flex items-center gap-3 flex-1 min-w-0" onClick={() => setShowResults(false)}>
                         <img src={product.images[0]} className="w-12 h-12 object-cover rounded border border-gray-100" alt={product.name} />
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-medium text-gray-800 truncate group-hover:text-[#00a651] transition-colors">{product.name}</h4>
@@ -257,13 +312,13 @@ const Header: React.FC = () => {
       </div>
 
       {/* Navigation Sub-header (Desktop) */}
-      <div className={`${isSticky ? 'h-[60px]' : 'h-0'} transition - all duration - 0 hidden md: block`}></div> {/* Placeholder to prevent jump */}
-      <div className={`bg - white border - b border - gray - 100 hidden md:block transition - all duration - 300 ${isSticky ? 'fixed top-0 left-0 w-full z-[60] shadow-md py-2 animate-slideDown' : 'py-3'} `}>
+      <div className={`${isSticky ? 'h-[60px]' : 'h-0'} transition-all duration-0 hidden md:block`}></div> {/* Placeholder to prevent jump */}
+      <div className={`bg-white border-b border-gray-100 hidden md:block transition-all duration-300 ${isSticky ? 'fixed top-0 left-0 w-full z-[60] shadow-md py-2 animate-slideDown' : 'py-3'} `}>
         <div className="container mx-auto px-4 md:px-8 flex items-center justify-between gap-4">
 
           <div className="flex items-center gap-8">
             {/* Sticky Logo */}
-            <div className={`transition - all duration - 300 overflow - hidden ${isSticky ? 'w-10 opacity-100 mr-2' : 'w-0 opacity-0'} `}>
+            <div className={`transition-all duration-300 overflow-hidden ${isSticky ? 'w-10 opacity-100 mr-2' : 'w-0 opacity-0'} `}>
               <Link to="/">
                 {storeInfo.logo_url ? (
                   <img src={storeInfo.logo_url} alt={storeInfo.name} className="h-8 w-auto object-contain" />
@@ -289,18 +344,18 @@ const Header: React.FC = () => {
             </div>
 
             <nav className="flex gap-6 text-sm font-medium text-gray-600">
-              <Link to="/" className={`${location.pathname === '/' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition - colors`}>Home</Link>
-              <Link to="/products" className={`${location.pathname === '/products' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition - colors`}>Products</Link>
-              <Link to="/my-account" className={`${location.pathname === '/my-account' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition - colors`}>My Account</Link>
-              <Link to="/blog" className={`${location.pathname.startsWith('/blog') ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition - colors`}>Blog</Link>
+              <Link to="/" className={`${location.pathname === '/' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors`}>Home</Link>
+              <Link to="/products" className={`${location.pathname === '/products' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors`}>Products</Link>
+              <Link to="/my-account" className={`${location.pathname === '/my-account' ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors`}>My Account</Link>
+              <Link to="/blog" className={`${location.pathname.startsWith('/blog') ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors`}>Blog</Link>
               {isAdmin && (
-                <Link to="/admin" className={`${location.pathname.startsWith('/admin') ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition - colors font - bold`}>Dashboard</Link>
+                <Link to="/admin" className={`${location.pathname.startsWith('/admin') ? 'text-[#00a651]' : 'hover:text-[#00a651]'} transition-colors font-bold`}>Dashboard</Link>
               )}
             </nav>
           </div>
 
           {/* Sticky Search */}
-          <div className={`transition - all duration - 300 ease -in -out relative ${isSticky ? 'w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'} `}>
+          <div className={`transition-all duration-300 ease-in-out relative ${isSticky ? 'w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'} `}>
             <div className="flex w-full bg-gray-100 rounded-full overflow-hidden border border-gray-200 relative">
               <input
                 type="text"
@@ -324,7 +379,7 @@ const Header: React.FC = () => {
               <div className="absolute top-full left-0 w-full bg-white shadow-xl rounded-b-lg mt-1 border border-gray-100 divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
                 {searchResults.map(product => (
                   <div key={product.id + 'sticky'} className="flex items-center gap-2 p-2 hover:bg-gray-50 transition-colors group cursor-pointer">
-                    <Link to={`/ products ? search = ${product.name} `} className="flex items-center gap-2 flex-1 min-w-0" onClick={() => setShowResults(false)}>
+                    <Link to={`/product/${product.slug}`} className="flex items-center gap-2 flex-1 min-w-0" onClick={() => setShowResults(false)}>
                       <img src={product.images[0]} className="w-8 h-8 object-cover rounded border border-gray-100" alt={product.name} />
                       <div className="flex-1 min-w-0">
                         <h4 className="text-xs font-medium text-gray-800 truncate group-hover:text-[#00a651] transition-colors">{product.name}</h4>
@@ -357,43 +412,82 @@ const Header: React.FC = () => {
       </div>
 
       {/* Mobile Menu (Drawer) */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-gray-200 py-4 px-4 shadow-lg absolute w-full top-full left-0 z-40 max-h-[80vh] overflow-y-auto">
-          <nav className="flex flex-col gap-4">
+      {/* Mobile Menu (Side Drawer) */}
+      <div className={`fixed inset-0 z-[100] md:hidden transition-all duration-300 ${isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
+        {/* Backdrop */}
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+
+        {/* Drawer Panel */}
+        <div className={`absolute top-0 left-0 w-[80%] max-w-[300px] h-full bg-white shadow-2xl transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          {/* Drawer Header */}
+          <div className="bg-[#0b2416] p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {storeInfo.logo_url ? (
+                <img src={storeInfo.logo_url} alt={storeInfo.name} className="h-8 w-auto object-contain brightness-0 invert" />
+              ) : (
+                <span className="text-white font-bold text-lg">SMART GROCERY</span>
+              )}
+            </div>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="text-white/80 hover:text-white transition-colors">
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Drawer Content */}
+          <nav className="flex flex-col h-[calc(100%-64px)] overflow-y-auto">
             {user ? (
-              <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                <Link to="/my-account" className="flex items-center gap-2 font-bold text-gray-700">
-                  <User size={20} /> My Account
-                </Link>
-                <button onClick={signOut} className="text-red-500 text-xs font-bold border border-red-200 px-2 py-1 rounded">Sign Out</button>
+              <div className="bg-emerald-50 p-6 border-b border-emerald-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-[#00a651] rounded-full flex items-center justify-center text-white font-bold text-xl">
+                    {userProfile?.full_name?.[0] || 'U'}
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-800">{userProfile?.full_name || 'User'}</div>
+                    <div className="text-xs text-gray-500">{userProfile?.email}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Link to="/my-account" className="flex-1 bg-white text-gray-700 py-2 rounded text-center text-xs font-bold border border-gray-200 shadow-sm" onClick={() => setIsMobileMenuOpen(false)}>My Account</Link>
+                  <button onClick={() => { signOut(); setIsMobileMenuOpen(false); }} className="px-3 bg-red-50 text-red-500 py-2 rounded text-center text-xs font-bold border border-red-100">Sign Out</button>
+                </div>
               </div>
             ) : (
-              <Link to="/login" className="flex items-center gap-2 bg-[#00a651] text-white px-4 py-3 rounded-lg font-bold text-center justify-center">
-                <User size={20} /> Login / Register
-              </Link>
+              <div className="p-6 border-b border-gray-100">
+                <Link to="/login" className="flex items-center justify-center gap-2 bg-[#00a651] text-white w-full py-3 rounded-lg font-bold shadow-lg shadow-emerald-100 active:scale-95 transition-all" onClick={() => setIsMobileMenuOpen(false)}>
+                  <User size={18} /> Login / Register
+                </Link>
+              </div>
             )}
 
-            <div className="h-px bg-gray-100 my-1"></div>
+            <div className="p-4 flex flex-col gap-1">
+              <Link to="/" className="flex items-center justify-between px-4 py-3 text-gray-700 font-semibold hover:bg-gray-50 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                Home
+              </Link>
+              <Link to="/products" className="flex items-center justify-between px-4 py-3 text-gray-700 font-semibold hover:bg-gray-50 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                All Products
+              </Link>
+              <Link to="/blog" className="flex items-center justify-between px-4 py-3 text-gray-700 font-semibold hover:bg-gray-50 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
+                Blog
+              </Link>
+            </div>
 
-            <Link to="/" className="font-semibold text-gray-700 py-2">Home</Link>
-            <Link to="/products" className="font-semibold text-gray-700 py-2">All Products</Link>
-
-            <div className="py-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Categories</span>
-              <div className="ml-2 flex flex-col gap-2">
+            <div className="px-4 py-2">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest px-4 mb-2 block">Categories</span>
+              <div className="flex flex-col gap-1">
                 {categoryTree.map(cat => (
-                  <Link key={cat.id} to={`/ products ? category = ${encodeURIComponent(cat.name)} `} className="text-gray-600 text-sm py-1 border-l-2 border-gray-200 pl-3">
-                    {cat.name}
-                  </Link>
+                  <MobileCategoryItem key={cat.id} category={cat} level={0} onClose={() => setIsMobileMenuOpen(false)} />
                 ))}
               </div>
             </div>
 
-            <Link to="/blog" className="font-semibold text-gray-700 py-2">Blog</Link>
-            {isAdmin && <Link to="/admin" className="font-bold text-[#00a651] py-2">Admin Dashboard</Link>}
+            {isAdmin && (
+              <div className="mt-auto p-4 border-t border-gray-100">
+                <Link to="/admin" className="block text-center font-bold text-[#00a651] bg-[#e6fbf2] py-3 rounded-lg border border-[#00a651]/20" onClick={() => setIsMobileMenuOpen(false)}>Admin Dashboard</Link>
+              </div>
+            )}
           </nav>
         </div>
-      )}
+      </div>
     </header>
   );
 };
