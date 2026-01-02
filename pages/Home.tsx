@@ -81,6 +81,54 @@ const GridSection: React.FC<{ section: HomeSection; products: Product[] }> = ({ 
 
 
 
+
+const PromoBannersSection = () => (
+  <section className="container mx-auto px-4 md:px-8 mb-16">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Banner 1 */}
+      <div className="rounded-2xl overflow-hidden shadow-sm group">
+        <img
+          src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-1.png"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          alt="Promo Banner 1"
+        />
+      </div>
+
+      {/* Banner 2 */}
+      <div className="rounded-2xl overflow-hidden shadow-sm group">
+        <img
+          src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-2.png"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          alt="Promo Banner 2"
+        />
+      </div>
+
+      {/* Banner 3 */}
+      <div className="rounded-2xl overflow-hidden shadow-sm group">
+        <img
+          src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-3.png"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          alt="Promo Banner 3"
+        />
+      </div>
+    </div>
+  </section>
+);
+
+
+const DualBannerSection = () => (
+  <section className="container mx-auto px-4 md:px-8 mb-16">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="rounded-2xl overflow-hidden shadow-sm group h-[200px] md:h-[280px]">
+        <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/home-banner-1.png" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Special Offer 1" />
+      </div>
+      <div className="rounded-2xl overflow-hidden shadow-sm group h-[200px] md:h-[280px]">
+        <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/home-banner-2.png" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Special Offer 2" />
+      </div>
+    </div>
+  </section>
+);
+
 const Home: React.FC = () => {
   const { products, banners, homeSections, categories } = useStore();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -267,8 +315,9 @@ const Home: React.FC = () => {
             }
           }
 
+          let sectionContent = null;
           if (items.length === 0) {
-            return (
+            sectionContent = (
               <section key={section.id} className="container mx-auto px-4 md:px-8 mb-16 opacity-50">
                 <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-gray-300 pl-4 mb-6">{section.title}</h2>
                 <div className="bg-gray-50 border border-gray-100 rounded-xl p-8 text-center">
@@ -277,50 +326,25 @@ const Home: React.FC = () => {
                 </div>
               </section>
             );
+          } else if (section.type === 'slider') {
+            sectionContent = <SliderSection key={section.id} section={section} products={items} />;
+          } else if (section.type === 'grid' || section.type === 'grid-no-banner') {
+            sectionContent = <GridSection key={section.id} section={section} products={items} />;
           }
 
+          if (sectionContent && section.title === 'Meat & Fish') {
+            return (
+              <React.Fragment key={`${section.id}-group`}>
+                <PromoBannersSection />
+                {sectionContent}
+                <DualBannerSection />
+              </React.Fragment>
+            );
+          }
 
-          if (section.type === 'slider') return <SliderSection key={section.id} section={section} products={items} />;
-          if (section.type === 'grid' || section.type === 'grid-no-banner') return <GridSection key={section.id} section={section} products={items} />;
-          return null;
+          return sectionContent;
         })}
 
-      {/* Promo Banners */}
-      <section className="container mx-auto px-4 md:px-8 mb-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Banner 1: Deals */}
-          <div className="bg-gradient-to-br from-[#fff1eb] to-[#ace0f9] p-8 rounded-2xl flex items-center justify-between group cursor-pointer shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-            <div className="relative z-10">
-              <span className="text-orange-600 text-xs font-black mb-2 block uppercase tracking-widest">Ultimate Shopping</span>
-              <h3 className="font-bold text-xl text-gray-800 mb-3 leading-tight">Unbeatable Deals <br /> Just a Click Away!</h3>
-              <button className="text-gray-700 text-xs font-bold border-b-2 border-gray-700 pb-0.5 group-hover:text-orange-600 group-hover:border-orange-600 transition-colors">Shop Now ➝</button>
-            </div>
-            <div className="absolute right-0 bottom-0 w-32 h-32 bg-white/40 rounded-full blur-2xl -mr-6 -mb-6"></div>
-            <img src="https://images.unsplash.com/photo-1573246123716-6b1782bfc499?auto=format&fit=crop&q=80&w=200" className="w-32 h-32 object-contain group-hover:scale-110 transition-transform duration-500 drop-shadow-xl relative z-10 mix-blend-multiply" alt="basket" />
-          </div>
-
-          {/* Banner 2: Savings */}
-          <div className="bg-gradient-to-br from-[#d4fc79] to-[#96e6a1] p-8 rounded-2xl flex items-center justify-between group cursor-pointer shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-            <div className="relative z-10">
-              <h3 className="font-black text-2xl text-emerald-900 leading-none mb-4">MEGA <br /> SAVINGS, <br /> ENDLESS <br /> SMILES!</h3>
-              <span className="inline-block bg-white/80 backdrop-blur-sm text-emerald-800 text-[10px] font-bold px-3 py-1 rounded-full">UP TO 50% OFF</span>
-            </div>
-            <div className="absolute right-2 top-2 w-20 h-20 bg-yellow-300/30 rounded-full blur-xl"></div>
-            <img src="https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&q=80&w=200" className="w-36 h-36 object-contain group-hover:rotate-12 transition-transform duration-500 drop-shadow-2xl relative z-10 -mr-4" alt="savings" />
-          </div>
-
-          {/* Banner 3: Delivery */}
-          <div className="bg-gradient-to-br from-[#e0c3fc] to-[#8ec5fc] p-8 rounded-2xl flex items-center justify-between group cursor-pointer shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-            <div className="relative z-10">
-              <span className="text-indigo-600 text-xs font-black mb-2 block uppercase tracking-widest">Everyday Shopping</span>
-              <h3 className="font-bold text-xl text-gray-800 mb-3 leading-tight">Fast Delivery <br /> To Your Doorstep</h3>
-              <button className="text-gray-700 text-xs font-bold border-b-2 border-gray-700 pb-0.5 group-hover:text-indigo-600 group-hover:border-indigo-600 transition-colors">Order Now ➝</button>
-            </div>
-            <div className="absolute left-0 bottom-0 w-24 h-24 bg-white/30 rounded-full blur-2xl -ml-4 -mb-4"></div>
-            <img src="https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&q=80&w=200" className="w-32 h-32 object-contain group-hover:-translate-x-2 transition-transform duration-500 drop-shadow-xl relative z-10 mix-blend-multiply" alt="delivery" />
-          </div>
-        </div>
-      </section>
     </div>
   );
 };
