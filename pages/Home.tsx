@@ -291,7 +291,7 @@ const Home: React.FC = () => {
                     Shop Now <ArrowRight size={8} className="lg:w-3.5 lg:h-3.5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
-                <div className="absolute right-0 bottom-0 w-[50%] h-[95%] lg:w-40 lg:h-40 lg:top-auto lg:bottom-[-8px] lg:right-[-16px] z-10">
+                <div className="absolute right-0 bottom-0 top-0 w-[65%] lg:w-40 lg:h-40 lg:top-auto lg:bottom-[-8px] lg:right-[-16px] z-10">
                   <img src="https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&q=80&w=200" className="w-full h-full object-contain object-right-bottom mix-blend-multiply lg:opacity-100" alt="eggs" />
                 </div>
               </div>
@@ -318,7 +318,7 @@ const Home: React.FC = () => {
                     Shop Now <ArrowRight size={8} className="lg:w-3.5 lg:h-3.5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
-                <div className="absolute right-0 bottom-0 w-[50%] h-[95%] lg:w-40 lg:h-40 lg:top-auto lg:bottom-[-8px] lg:right-[-16px] z-10">
+                <div className="absolute right-0 bottom-0 top-0 w-[65%] lg:w-40 lg:h-40 lg:top-auto lg:bottom-[-8px] lg:right-[-16px] z-10">
                   <img src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=200" className="w-full h-full object-contain object-right-bottom mix-blend-multiply lg:opacity-100" alt="fruits" />
                 </div>
               </div>
