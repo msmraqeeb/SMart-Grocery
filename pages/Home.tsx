@@ -7,6 +7,36 @@ import { HomeSection, Product } from '../types';
 
 const SliderSection: React.FC<{ section: HomeSection; products: Product[] }> = ({ section, products }) => {
   const sliderId = `slider-${section.id}`;
+
+  // Drag to scroll logic
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
   return (
     <section className="container mx-auto px-4 md:px-8 mb-16 relative group/slider">
       <div className="flex justify-between items-end mb-6">
@@ -23,9 +53,17 @@ const SliderSection: React.FC<{ section: HomeSection; products: Product[] }> = (
         >
           <ArrowRight size={20} className="rotate-180" />
         </button>
-        <div id={sliderId} className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+        <div
+          id={sliderId}
+          ref={scrollRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className="flex gap-4 md:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory cursor-grab active:cursor-grabbing"
+        >
           {products.map(product => (
-            <div key={product.id} className="min-w-[280px] md:min-w-[300px] snap-center">
+            <div key={product.id} className="min-w-[160px] md:min-w-[300px] snap-center flex-shrink-0 select-none">
               <ProductCard product={product} />
             </div>
           ))}
@@ -147,6 +185,35 @@ const Home: React.FC = () => {
 
 
 
+  // Drag to scroll logic
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // Scroll-fast
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
   return (
     <div className="w-full bg-white pb-20">
 
@@ -154,7 +221,7 @@ const Home: React.FC = () => {
       <section className="container mx-auto px-4 md:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Slider (Left 2/3) */}
-          <div className="lg:col-span-2 relative rounded-xl overflow-hidden h-[350px] md:h-[450px]">
+          <div className="lg:col-span-2 relative rounded-xl overflow-hidden h-[200px] md:h-[450px]">
             {sliderBanners.length > 0 ? (
               <>
                 {sliderBanners.map((banner, idx) => (
@@ -202,54 +269,58 @@ const Home: React.FC = () => {
           </div>
 
           {/* Right Banners (Right 1/3) */}
-          <div className="flex flex-col gap-6 h-full">
+          <div className="grid grid-cols-2 lg:flex lg:flex-col gap-3 lg:gap-6 h-full pb-2 lg:pb-0">
             {/* Top Banner */}
             {rightTopBanner ? (
-              <div className="flex-1 rounded-xl relative overflow-hidden flex flex-col justify-center group h-[215px]">
+              <div className="rounded-xl relative overflow-hidden flex flex-col justify-center group h-[113px] lg:h-[215px] lg:flex-1">
                 <img src={rightTopBanner.image_url} alt={rightTopBanner.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
-                <div className="relative z-10 p-8 text-white">
-                  {rightTopBanner.subtitle && <span className="font-bold text-xs mb-2 block uppercase tracking-wider text-emerald-300">{rightTopBanner.subtitle}</span>}
-                  {rightTopBanner.title && <h3 className="text-2xl font-black mb-4 leading-tight">{rightTopBanner.title}</h3>}
-                  {rightTopBanner.link && <a href={rightTopBanner.link} className="inline-flex items-center gap-2 text-sm font-bold hover:underline">Shop Now <ArrowRight size={14} /></a>}
+                <div className="relative z-10 p-3 lg:p-8 text-white">
+                  {rightTopBanner.subtitle && <span className="font-bold text-[8px] lg:text-xs mb-1 lg:mb-2 block uppercase tracking-wider text-emerald-300">{rightTopBanner.subtitle}</span>}
+                  {rightTopBanner.title && <h3 className="text-xs lg:text-2xl font-black mb-1 lg:mb-4 leading-tight">{rightTopBanner.title}</h3>}
+                  {rightTopBanner.link && <a href={rightTopBanner.link} className="inline-flex items-center gap-1 lg:gap-2 text-[8px] lg:text-sm font-bold hover:underline">Shop Now <ArrowRight size={10} className="lg:w-3.5 lg:h-3.5" /></a>}
                 </div>
               </div>
             ) : (
-              <div className="flex-1 bg-[#f0f9f4] rounded-xl p-6 relative overflow-hidden flex flex-col justify-center border border-emerald-50">
-                <div className="relative z-10">
-                  <span className="text-[#00a651] font-bold text-xs mb-1 block uppercase tracking-wider">Only This Week</span>
-                  <h3 className="text-xl font-bold text-gray-800 mb-1">Quality eggs at an <br /> affordable price</h3>
-                  <p className="text-gray-500 text-xs mb-4">Eat one every day</p>
-                  <button className="bg-[#00a651] text-white text-xs px-5 py-2.5 rounded-full font-bold hover:bg-[#008c44] transition-colors flex items-center gap-2 group w-fit">
-                    Shop Now <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              <div className="rounded-xl bg-[#f0f9f4] relative overflow-hidden border border-emerald-50 h-[113px] lg:h-auto lg:flex-1 lg:flex lg:flex-col lg:justify-center lg:p-6 group">
+                <div className="absolute top-0 left-0 bottom-0 z-20 w-[60%] flex flex-col justify-center pl-3 lg:static lg:w-full lg:block lg:pl-0">
+                  <span className="text-[#00a651] font-bold text-[8px] lg:text-xs mb-0.5 lg:mb-1 block uppercase tracking-wider">Only This Week</span>
+                  <h3 className="text-[10px] lg:text-xl font-bold text-gray-800 mb-0.5 lg:mb-1 leading-tight break-words">Quality eggs <br className="lg:hidden" /> at an price</h3>
+                  <p className="text-gray-500 text-[8px] lg:text-xs mb-1.5 lg:mb-4">Eat one every day</p>
+                  <button className="bg-[#00a651] text-white text-[8px] lg:text-xs px-2 lg:px-5 py-1 lg:py-2.5 rounded-full font-bold hover:bg-[#008c44] transition-colors flex items-center gap-1 lg:gap-2 group w-fit">
+                    Shop Now <ArrowRight size={8} className="lg:w-3.5 lg:h-3.5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
-                <img src="https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&q=80&w=200" className="absolute -bottom-2 -right-4 w-40 h-40 object-contain mix-blend-multiply" alt="eggs" />
+                <div className="absolute right-0 bottom-0 w-[50%] h-[95%] lg:w-40 lg:h-40 lg:top-auto lg:bottom-[-8px] lg:right-[-16px] z-10">
+                  <img src="https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&q=80&w=200" className="w-full h-full object-contain object-right-bottom mix-blend-multiply lg:opacity-100" alt="eggs" />
+                </div>
               </div>
             )}
 
             {/* Bottom Banner */}
             {rightBottomBanner ? (
-              <div className="flex-1 rounded-xl relative overflow-hidden flex flex-col justify-center group h-[215px]">
+              <div className="rounded-xl relative overflow-hidden flex flex-col justify-center group h-[113px] lg:h-[215px] lg:flex-1">
                 <img src={rightBottomBanner.image_url} alt={rightBottomBanner.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
-                <div className="relative z-10 p-8 text-white">
-                  {rightBottomBanner.subtitle && <span className="font-bold text-xs mb-2 block uppercase tracking-wider text-emerald-300">{rightBottomBanner.subtitle}</span>}
-                  {rightBottomBanner.title && <h3 className="text-2xl font-black mb-4 leading-tight">{rightBottomBanner.title}</h3>}
-                  {rightBottomBanner.link && <a href={rightBottomBanner.link} className="inline-flex items-center gap-2 text-sm font-bold hover:underline">Shop Now <ArrowRight size={14} /></a>}
+                <div className="relative z-10 p-3 lg:p-8 text-white">
+                  {rightBottomBanner.subtitle && <span className="font-bold text-[8px] lg:text-xs mb-1 lg:mb-2 block uppercase tracking-wider text-emerald-300">{rightBottomBanner.subtitle}</span>}
+                  {rightBottomBanner.title && <h3 className="text-xs lg:text-2xl font-black mb-1 lg:mb-4 leading-tight">{rightBottomBanner.title}</h3>}
+                  {rightBottomBanner.link && <a href={rightBottomBanner.link} className="inline-flex items-center gap-1 lg:gap-2 text-[8px] lg:text-sm font-bold hover:underline">Shop Now <ArrowRight size={10} className="lg:w-3.5 lg:h-3.5" /></a>}
                 </div>
               </div>
             ) : (
-              <div className="flex-1 bg-[#fff5f5] rounded-xl p-6 relative overflow-hidden flex flex-col justify-center border border-red-50">
-                <div className="relative z-10">
-                  <span className="text-[#00a651] font-bold text-xs mb-1 block uppercase tracking-wider">Fuel Your Day</span>
-                  <h3 className="text-xl font-bold text-gray-800 mb-1">Nutritious bites for <br /> mind and body.</h3>
-                  <p className="text-gray-500 text-xs mb-4">Start fresh...</p>
-                  <button className="bg-[#00a651] text-white text-xs px-5 py-2.5 rounded-full font-bold hover:bg-[#008c44] transition-colors flex items-center gap-2 group w-fit">
-                    Shop Now <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              <div className="rounded-xl bg-[#fff5f5] relative overflow-hidden border border-red-50 h-[113px] lg:h-auto lg:flex-1 lg:flex lg:flex-col lg:justify-center lg:p-6 group">
+                <div className="absolute top-0 left-0 bottom-0 z-20 w-[60%] flex flex-col justify-center pl-3 lg:static lg:w-full lg:block lg:pl-0">
+                  <span className="text-[#00a651] font-bold text-[8px] lg:text-xs mb-0.5 lg:mb-1 block uppercase tracking-wider">Fuel Your Day</span>
+                  <h3 className="text-[10px] lg:text-xl font-bold text-gray-800 mb-0.5 lg:mb-1 leading-tight break-words">Nutritious bites <br className="lg:hidden" /> for mind</h3>
+                  <p className="text-gray-500 text-[8px] lg:text-xs mb-1.5 lg:mb-4">Start fresh...</p>
+                  <button className="bg-[#00a651] text-white text-[8px] lg:text-xs px-2 lg:px-5 py-1 lg:py-2.5 rounded-full font-bold hover:bg-[#008c44] transition-colors flex items-center gap-1 lg:gap-2 group w-fit">
+                    Shop Now <ArrowRight size={8} className="lg:w-3.5 lg:h-3.5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
-                <img src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=200" className="absolute -bottom-2 -right-4 w-40 h-40 object-contain mix-blend-multiply" alt="fruits" />
+                <div className="absolute right-0 bottom-0 w-[50%] h-[95%] lg:w-40 lg:h-40 lg:top-auto lg:bottom-[-8px] lg:right-[-16px] z-10">
+                  <img src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=200" className="w-full h-full object-contain object-right-bottom mix-blend-multiply lg:opacity-100" alt="fruits" />
+                </div>
               </div>
             )}
           </div>
@@ -257,9 +328,16 @@ const Home: React.FC = () => {
       </section>
 
       {/* Features Bar */}
-      <section className="bg-[#f7f8f3] py-8 mt-4 mb-12">
-        <div className="container mx-auto px-4 md:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+      <section className="container mx-auto px-4 md:px-8 mb-12">
+        <div className="bg-[#f7f8f3] rounded-2xl p-6 md:p-8">
+          <div
+            ref={scrollRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            className="flex overflow-x-auto md:grid md:grid-cols-5 gap-4 md:gap-8 scrollbar-hide cursor-grab active:cursor-grabbing snap-x"
+          >
             {[
               { icon: Headphones, title: 'Online Support' },
               { icon: ShieldCheck, title: 'Official Product' },
@@ -267,11 +345,13 @@ const Home: React.FC = () => {
               { icon: Award, title: 'Secure Payment' },
               { icon: Award, title: 'Genuine Product' },
             ].map((feat, idx) => (
-              <div key={idx} className="flex flex-col items-center text-center gap-3">
-                <div className="text-[#00a651]">
-                  <feat.icon size={32} strokeWidth={1.5} />
+              <div key={idx} className="flex items-center gap-3 min-w-[200px] md:min-w-0 flex-shrink-0 snap-start px-2 md:px-0 select-none">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-[#00a651] text-white rounded-md flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <feat.icon size={20} className="md:w-6 md:h-6" strokeWidth={2} />
                 </div>
-                <h4 className="font-bold text-[13px] text-emerald-900">{feat.title}</h4>
+                <div>
+                  <h4 className="font-bold text-[13px] md:text-sm text-gray-800 leading-tight">{feat.title}</h4>
+                </div>
               </div>
             ))}
           </div>
