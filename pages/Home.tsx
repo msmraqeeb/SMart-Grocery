@@ -272,7 +272,7 @@ const Home: React.FC = () => {
           <div className="grid grid-cols-2 lg:flex lg:flex-col gap-3 lg:gap-6 h-full pb-2 lg:pb-0">
             {/* Top Banner */}
             {rightTopBanner ? (
-              <div className="rounded-xl relative overflow-hidden flex flex-col justify-center group h-[113px] lg:h-[215px] lg:flex-1">
+              <div className="rounded-xl relative overflow-hidden flex flex-col justify-center group aspect-[2/1] h-auto lg:h-[215px] lg:aspect-auto lg:flex-1">
                 <img src={rightTopBanner.image_url} alt={rightTopBanner.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
                 <div className="relative z-10 p-3 lg:p-8 text-white">
@@ -282,7 +282,7 @@ const Home: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl bg-[#f0f9f4] relative overflow-hidden border border-emerald-50 h-[113px] lg:h-auto lg:flex-1 lg:flex lg:flex-col lg:justify-center lg:p-6 group">
+              <div className="rounded-xl bg-[#f0f9f4] relative overflow-hidden border border-emerald-50 aspect-[2/1] h-auto lg:h-auto lg:aspect-auto lg:flex-1 lg:flex lg:flex-col lg:justify-center lg:p-6 group">
                 <div className="absolute top-0 left-0 bottom-0 z-20 w-[60%] flex flex-col justify-center pl-3 lg:static lg:w-full lg:block lg:pl-0">
                   <span className="text-[#00a651] font-bold text-[8px] lg:text-xs mb-0.5 lg:mb-1 block uppercase tracking-wider">Only This Week</span>
                   <h3 className="text-[10px] lg:text-xl font-bold text-gray-800 mb-0.5 lg:mb-1 leading-tight break-words">Quality eggs <br className="lg:hidden" /> at an price</h3>
@@ -299,7 +299,7 @@ const Home: React.FC = () => {
 
             {/* Bottom Banner */}
             {rightBottomBanner ? (
-              <div className="rounded-xl relative overflow-hidden flex flex-col justify-center group h-[113px] lg:h-[215px] lg:flex-1">
+              <div className="rounded-xl relative overflow-hidden flex flex-col justify-center group aspect-[2/1] h-auto lg:h-[215px] lg:aspect-auto lg:flex-1">
                 <img src={rightBottomBanner.image_url} alt={rightBottomBanner.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
                 <div className="relative z-10 p-3 lg:p-8 text-white">
@@ -309,7 +309,7 @@ const Home: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl bg-[#fff5f5] relative overflow-hidden border border-red-50 h-[113px] lg:h-auto lg:flex-1 lg:flex lg:flex-col lg:justify-center lg:p-6 group">
+              <div className="rounded-xl bg-[#fff5f5] relative overflow-hidden border border-red-50 aspect-[2/1] h-auto lg:h-auto lg:aspect-auto lg:flex-1 lg:flex lg:flex-col lg:justify-center lg:p-6 group">
                 <div className="absolute top-0 left-0 bottom-0 z-20 w-[60%] flex flex-col justify-center pl-3 lg:static lg:w-full lg:block lg:pl-0">
                   <span className="text-[#00a651] font-bold text-[8px] lg:text-xs mb-0.5 lg:mb-1 block uppercase tracking-wider">Fuel Your Day</span>
                   <h3 className="text-[10px] lg:text-xl font-bold text-gray-800 mb-0.5 lg:mb-1 leading-tight break-words">Nutritious bites <br className="lg:hidden" /> for mind</h3>
