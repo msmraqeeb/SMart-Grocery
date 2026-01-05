@@ -12,10 +12,10 @@ const Footer: React.FC = () => {
   return (
     <footer className="bg-[#0f172a] text-gray-300 pt-16 pb-8 text-sm">
       <div className="container mx-auto px-4 md:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
 
           {/* Company Info */}
-          <div className="space-y-4">
+          <div className="space-y-4 col-span-2 md:col-span-1 lg:col-span-1">
             <div className="mb-6">
               {storeInfo.logo_url ? (
                 <img src={storeInfo.logo_url} alt={storeInfo.name} className="h-16 w-auto object-contain" />
@@ -83,46 +83,43 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Social */}
-          <div>
-            <h3 className="text-white font-bold text-lg mb-6">Social Links</h3>
-            <div className="flex gap-4 mb-6">
-              {storeInfo.socials?.facebook && <a href={storeInfo.socials.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-500 transition-colors cursor-pointer"><Facebook size={18} /></a>}
-              {storeInfo.socials?.instagram && <a href={storeInfo.socials.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-500 transition-colors cursor-pointer"><Instagram size={18} /></a>}
-              {(!storeInfo.socials?.facebook && !storeInfo.socials?.instagram) && <span className="text-gray-500 text-sm">No social links configured.</span>}
-            </div>
-
-            <div className="flex gap-2">
-              {storeInfo.app_links?.android && (
-                <a href={storeInfo.app_links.android} target="_blank" rel="noopener noreferrer" className="block w-28 hover:opacity-90 transition-opacity">
-                  <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/google-play.svg" alt="Get it on Google Play" className="w-full h-auto" />
-                </a>
-              )}
-              {storeInfo.app_links?.ios && (
-                <a href={storeInfo.app_links.ios} target="_blank" rel="noopener noreferrer" className="block w-28 hover:opacity-90 transition-opacity">
-                  <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/app-store.svg" alt="Download on App Store" className="w-full h-auto" />
-                </a>
-              )}
-              {!storeInfo.app_links?.ios && !storeInfo.app_links?.android && (
-                <div className="block w-28 opacity-50 cursor-not-allowed">
-                  <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/google-play.svg" alt="Get it on Google Play" className="w-full h-auto" />
+          <div className="col-span-2 md:col-span-1 lg:col-span-1">
+            <div className="grid grid-cols-2 md:block gap-4">
+              <div>
+                <h3 className="text-white font-bold text-lg mb-6">Social Links</h3>
+                <div className="flex gap-4 mb-6">
+                  {storeInfo.socials?.facebook && <a href={storeInfo.socials.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-500 transition-colors cursor-pointer"><Facebook size={18} /></a>}
+                  {storeInfo.socials?.instagram && <a href={storeInfo.socials.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-500 transition-colors cursor-pointer"><Instagram size={18} /></a>}
+                  {(!storeInfo.socials?.facebook && !storeInfo.socials?.instagram) && <span className="text-gray-500 text-sm">No social links configured.</span>}
                 </div>
-              )}
+              </div>
+
+              <div className="flex flex-col justify-center items-start pt-2 md:pt-0">
+                <div className="flex flex-wrap gap-2">
+                  {storeInfo.app_links?.android && (
+                    <a href={storeInfo.app_links.android} target="_blank" rel="noopener noreferrer" className="block w-28 hover:opacity-90 transition-opacity">
+                      <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/google-play.svg" alt="Get it on Google Play" className="w-full h-auto" />
+                    </a>
+                  )}
+                  {storeInfo.app_links?.ios && (
+                    <a href={storeInfo.app_links.ios} target="_blank" rel="noopener noreferrer" className="block w-28 hover:opacity-90 transition-opacity">
+                      <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/app-store.svg" alt="Download on App Store" className="w-full h-auto" />
+                    </a>
+                  )}
+                  {!storeInfo.app_links?.ios && !storeInfo.app_links?.android && (
+                    <div className="block w-28 opacity-50 cursor-not-allowed">
+                      <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/google-play.svg" alt="Get it on Google Play" className="w-full h-auto" />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-          <div className="flex flex-col md:flex-row items-center gap-1 md:gap-2">
-            <p>© {currentYear} {storeInfo.name}. All rights reserved.</p>
-            <p className="text-gray-500 hidden md:block">|</p>
-            <p>Developed by: <a href="https://shakilmahmud.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-bold transition-colors">Shakil Mahmud</a></p>
-          </div>
-          <div className="flex gap-2">
-            {['visa', 'mastercard', 'paypal'].map(p => (
-              <div key={p} className="h-6 w-10 bg-white/10 rounded flex items-center justify-center text-[8px] font-black text-white/50 uppercase tracking-tighter">
-                {p}
-              </div>
-            ))}
+          <div className="text-[11px] md:text-sm">
+            © {currentYear} {storeInfo.name}. All rights reserved. <span className="text-gray-500 mx-1">|</span> Developed by: <a href="https://shakilmahmud.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-bold transition-colors">Shakil Mahmud</a>
           </div>
         </div>
       </div>

@@ -176,6 +176,20 @@ const Admin: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleSupportImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setStoreForm(prev => ({
+          ...prev,
+          floatingWidget: { ...(prev.floatingWidget || {}), supportImage: reader.result as string }
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const SQL_SCHEMA = `-- SMart Grocery Super Admin Schema (V7)
 -- This script FIXES RLS "violate policy" errors for orders, wishlist, and addresses.
 -- SAFE to run multiple times. Data stays intact.
@@ -2235,6 +2249,35 @@ CREATE POLICY "Public read blog" ON public.blog_posts FOR SELECT USING (true);`;
                   <div className="grid grid-cols-2 gap-8">
                     <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Facebook URL</label><input value={storeForm.socials?.facebook || ''} onChange={e => setStoreForm({ ...storeForm, socials: { ...storeForm.socials, facebook: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="https://facebook.com/..." /></div>
                     <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Instagram URL</label><input value={storeForm.socials?.instagram || ''} onChange={e => setStoreForm({ ...storeForm, socials: { ...storeForm.socials, instagram: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 transition-all" placeholder="https://instagram.com/..." /></div>
+                  </div>
+
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mt-6">Floating Contact Widget</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" checked={storeForm.floatingWidget?.isVisible ?? true} onChange={e => setStoreForm({ ...storeForm, floatingWidget: { ...(storeForm.floatingWidget || {}), isVisible: e.target.checked } })} className="w-5 h-5 accent-emerald-500" />
+                        <span className="text-sm font-bold text-gray-700">Enable Widget</span>
+                      </label>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Support Agent Image</label>
+                      <div className="flex items-center gap-4">
+                        {storeForm.floatingWidget?.supportImage && <img src={storeForm.floatingWidget.supportImage} className="w-12 h-12 object-cover rounded-full border border-gray-100" />}
+                        <label className="cursor-pointer bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-emerald-500 px-6 py-4 rounded-xl text-xs font-black uppercase tracking-widest border border-gray-100 transition-all flex items-center gap-2">
+                          <ImageIcon size={16} /> Upload Image
+                          <input type="file" accept="image/*" onChange={handleSupportImageUpload} className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">WhatsApp Number</label><input value={storeForm.floatingWidget?.whatsapp || ''} onChange={e => setStoreForm({ ...storeForm, floatingWidget: { ...(storeForm.floatingWidget || {}), whatsapp: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="e.g. 88017..." /></div>
+                      <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Messenger Username/ID</label><input value={storeForm.floatingWidget?.messenger || ''} onChange={e => setStoreForm({ ...storeForm, floatingWidget: { ...(storeForm.floatingWidget || {}), messenger: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="e.g. username" /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Facebook Link</label><input value={storeForm.floatingWidget?.facebook || ''} onChange={e => setStoreForm({ ...storeForm, floatingWidget: { ...(storeForm.floatingWidget || {}), facebook: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="https://facebook.com/..." /></div>
+                      <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Instagram Link</label><input value={storeForm.floatingWidget?.instagram || ''} onChange={e => setStoreForm({ ...storeForm, floatingWidget: { ...(storeForm.floatingWidget || {}), instagram: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="https://instagram.com/..." /></div>
+                    </div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Support Phone</label><input value={storeForm.floatingWidget?.phone || ''} onChange={e => setStoreForm({ ...storeForm, floatingWidget: { ...(storeForm.floatingWidget || {}), phone: e.target.value } })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="e.g. +8801..." /></div>
                   </div>
 
                   <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mt-6">Footer Settings</h4>

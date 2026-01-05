@@ -139,7 +139,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     address: '1418 River Drive, Suite 35, Cottonhall, CA 96222',
     phone: '+0 123 456 789',
     email: 'support@smart.com',
-    socials: {}
+    socials: {},
+    floatingWidget: {
+      isVisible: true,
+      whatsapp: '',
+      messenger: '',
+      facebook: '',
+      instagram: '',
+      phone: '',
+      supportImage: ''
+    }
   });
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(() => {
     if (typeof window !== 'undefined') {

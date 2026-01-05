@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Truck, Headphones, ShieldCheck, Award } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
@@ -40,8 +40,8 @@ const SliderSection: React.FC<{ section: HomeSection; products: Product[] }> = (
   return (
     <section className="container mx-auto px-4 md:px-8 mb-16 relative group/slider">
       <div className="flex justify-between items-end mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">{section.title}</h2>
-        <Link to={`/products?filter=${section.filterType}${section.filterValue ? `&value=${section.filterValue}` : ''}`} className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></Link>
+        <h2 className="text-lg md:text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">{section.title}</h2>
+        <Link to={`/products?filter=${section.filterType}${section.filterValue ? `&value=${section.filterValue}` : ''}`} className="text-[10px] md:text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></Link>
       </div>
       <div className="relative">
         <button
@@ -88,8 +88,8 @@ const GridSection: React.FC<{ section: HomeSection; products: Product[] }> = ({ 
   return (
     <section className="container mx-auto px-4 md:px-8 mb-16">
       <div className="flex justify-between items-end mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">{section.title}</h2>
-        <Link to={`/products?filter=${section.filterType}${section.filterValue ? `&value=${section.filterValue}` : ''}`} className="text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></Link>
+        <h2 className="text-lg md:text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">{section.title}</h2>
+        <Link to={`/products?filter=${section.filterType}${section.filterValue ? `&value=${section.filterValue}` : ''}`} className="text-[10px] md:text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></Link>
       </div>
 
       <div className={`grid grid-cols-1 ${isNoBanner ? '' : 'lg:grid-cols-4'} gap-6`}>
@@ -106,7 +106,7 @@ const GridSection: React.FC<{ section: HomeSection; products: Product[] }> = ({ 
 
         <div className={`
           ${!isNoBanner ? (section.banner ? 'lg:col-span-3' : 'lg:col-span-4') : ''} 
-          grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${isNoBanner ? '5' : (section.banner ? '3' : '4')} gap-6
+          grid grid-cols-2 lg:grid-cols-${isNoBanner ? '5' : (section.banner ? '3' : '4')} gap-3 md:gap-6
         `}>
           {products.slice(0, isNoBanner ? 10 : (section.banner ? 6 : 8)).map(product => (
             <ProductCard key={`${section.id}-${product.id}`} product={product} />
@@ -117,50 +117,84 @@ const GridSection: React.FC<{ section: HomeSection; products: Product[] }> = ({ 
   );
 };
 
+const PromoBannersSection = () => {
+  // Drag to scroll logic
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
 
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
 
-const PromoBannersSection = () => (
-  <section className="container mx-auto px-4 md:px-8 mb-16">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {/* Banner 1 */}
-      <div className="rounded-2xl overflow-hidden shadow-sm group">
-        <img
-          src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-1.png"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          alt="Promo Banner 1"
-        />
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  return (
+    <section className="container mx-auto px-4 md:px-8 mb-16">
+      <div
+        ref={scrollRef}
+        onMouseDown={handleMouseDown}
+        onMouseLeave={handleMouseLeave}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+        className="flex overflow-x-auto gap-4 md:grid md:grid-cols-3 md:gap-6 snap-x snap-mandatory scrollbar-hide cursor-grab active:cursor-grabbing"
+      >
+        {/* Banner 1 */}
+        <div className="w-full md:w-auto h-auto md:h-full flex-none snap-center rounded-2xl overflow-hidden shadow-sm group select-none relative">
+          <img
+            src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-1.png"
+            className="w-full h-auto object-contain md:object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none"
+            alt="Promo Banner 1"
+          />
+        </div>
+
+        {/* Banner 2 */}
+        <div className="w-full md:w-auto h-auto md:h-full flex-none snap-center rounded-2xl overflow-hidden shadow-sm group select-none relative">
+          <img
+            src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-2.png"
+            className="w-full h-auto object-contain md:object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none"
+            alt="Promo Banner 2"
+          />
+        </div>
+
+        {/* Banner 3 */}
+        <div className="w-full md:w-auto h-auto md:h-full flex-none snap-center rounded-2xl overflow-hidden shadow-sm group select-none relative">
+          <img
+            src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-3.png"
+            className="w-full h-auto object-contain md:object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none"
+            alt="Promo Banner 3"
+          />
+        </div>
       </div>
-
-      {/* Banner 2 */}
-      <div className="rounded-2xl overflow-hidden shadow-sm group">
-        <img
-          src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-2.png"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          alt="Promo Banner 2"
-        />
-      </div>
-
-      {/* Banner 3 */}
-      <div className="rounded-2xl overflow-hidden shadow-sm group">
-        <img
-          src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/mini-banner-3.png"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          alt="Promo Banner 3"
-        />
-      </div>
-    </div>
-  </section>
-);
-
+    </section>
+  );
+};
 
 const DualBannerSection = () => (
   <section className="container mx-auto px-4 md:px-8 mb-16">
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="rounded-2xl overflow-hidden shadow-sm group h-[200px] md:h-[280px]">
+    <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-6">
+      <div className="rounded-2xl overflow-hidden shadow-sm group aspect-[2/1] h-auto md:aspect-auto md:h-[280px]">
         <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/home-banner-1.png" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Special Offer 1" />
       </div>
-      <div className="rounded-2xl overflow-hidden shadow-sm group h-[200px] md:h-[280px]">
+      <div className="rounded-2xl overflow-hidden shadow-sm group aspect-[2/1] h-auto md:aspect-auto md:h-[280px]">
         <img src="https://dnaziaddhwmqalwrdgex.supabase.co/storage/v1/object/public/product-images/home-banner-2.png" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Special Offer 2" />
       </div>
     </div>
@@ -170,6 +204,11 @@ const DualBannerSection = () => (
 const Home: React.FC = () => {
   const { products, banners, homeSections, categories } = useStore();
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Randomize products for "Best Items for you" section
+  const randomProducts = useMemo(() => {
+    return [...products].sort(() => 0.5 - Math.random()).slice(0, 10);
+  }, [products]);
 
   const sliderBanners = banners.filter(b => b.type === 'slider' && b.is_active);
   const rightTopBanner = banners.find(b => b.type === 'right_top' && b.is_active);
@@ -182,8 +221,6 @@ const Home: React.FC = () => {
     }, 5000);
     return () => clearInterval(interval);
   }, [sliderBanners.length]);
-
-
 
   // Drag to scroll logic
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -424,6 +461,19 @@ const Home: React.FC = () => {
 
           return sectionContent;
         })}
+
+      {/* Best Items for you Section */}
+      <section className="container mx-auto px-4 md:px-8 mb-16">
+        <div className="flex justify-between items-end mb-6">
+          <h2 className="text-lg md:text-2xl font-bold text-gray-800 border-l-4 border-[#00a651] pl-4">Best Items for you</h2>
+          <Link to="/products" className="text-[10px] md:text-sm font-bold text-[#00a651] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-tighter">View All Items <ArrowRight size={14} /></Link>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6">
+          {randomProducts.map(product => (
+            <ProductCard key={`best-${product.id}`} product={product} />
+          ))}
+        </div>
+      </section>
 
     </div>
   );

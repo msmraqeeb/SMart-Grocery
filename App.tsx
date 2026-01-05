@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import FloatingContact from './components/FloatingContact';
 import CartSidebar from './components/CartSidebar';
 import Home from './pages/Home';
 import Products from './pages/Products';
@@ -58,6 +59,7 @@ const AppContent: React.FC = () => {
         </Routes>
       </main>
       <Footer />
+      <FloatingContact />
     </div>
   );
 };

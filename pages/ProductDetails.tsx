@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { ShoppingCart, MessageCircle, PhoneCall, Star, Plus, Minus, ChevronRight, X, Info, Send, ChevronLeft } from 'lucide-react';
 import { Variant, Review } from '../types';
+import ProductCard from '../components/ProductCard';
 
 const ProductDetails: React.FC = () => {
   const { slug } = useParams() as { slug: string };
@@ -20,6 +21,13 @@ const ProductDetails: React.FC = () => {
 
   const product = products.find(p => p.slug === slug);
   const productReviews = useMemo(() => reviews.filter(r => r.productId === product?.id), [reviews, product]);
+
+  const relatedProducts = useMemo(() => {
+    if (!product) return [];
+    return products
+      .filter(p => p.category === product.category && p.id !== product.id)
+      .slice(0, 4);
+  }, [products, product]);
 
   const ratingStats = useMemo(() => {
     if (productReviews.length === 0) return { average: 0, total: 0, recommendedPercent: 0, starCounts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<number, number> };
@@ -129,6 +137,35 @@ const ProductDetails: React.FC = () => {
 
   const displayImages = product.images || [];
   const variantImage = currentVariant?.image;
+
+  // Related Products Drag to scroll logic
+  const relatedScrollRef = React.useRef<HTMLDivElement>(null);
+  const [isRelatedDragging, setIsRelatedDragging] = useState(false);
+  const [relatedStartX, setRelatedStartX] = useState(0);
+  const [relatedScrollLeft, setRelatedScrollLeft] = useState(0);
+
+  const handleRelatedMouseDown = (e: React.MouseEvent) => {
+    if (!relatedScrollRef.current) return;
+    setIsRelatedDragging(true);
+    setRelatedStartX(e.pageX - relatedScrollRef.current.offsetLeft);
+    setRelatedScrollLeft(relatedScrollRef.current.scrollLeft);
+  };
+
+  const handleRelatedMouseLeave = () => {
+    setIsRelatedDragging(false);
+  };
+
+  const handleRelatedMouseUp = () => {
+    setIsRelatedDragging(false);
+  };
+
+  const handleRelatedMouseMove = (e: React.MouseEvent) => {
+    if (!isRelatedDragging || !relatedScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - relatedScrollRef.current.offsetLeft;
+    const walk = (x - relatedStartX) * 2;
+    relatedScrollRef.current.scrollLeft = relatedScrollLeft - walk;
+  };
 
   return (
     <div className="bg-white min-h-screen pb-20">
@@ -267,84 +304,87 @@ const ProductDetails: React.FC = () => {
         </div>
 
         {/* Detailed Info Section */}
-        <div className="mt-24 bg-[#fcfcfc] rounded-[3rem] p-12 md:p-20 border border-gray-100">
-          <h2 className="text-3xl font-black text-gray-800 uppercase tracking-widest mb-12 text-center">Product Information</h2>
+        <div className="mt-12 bg-white rounded-xl p-8 border border-gray-100 shadow-sm">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Product Details</h2>
+            <div className="w-12 h-1 bg-[#00a651] rounded-full"></div>
+          </div>
           <div
-            className="bg-white p-12 md:p-16 rounded-[2.5rem] border border-gray-100 text-gray-600 leading-[2] text-lg prose prose-emerald max-w-none shadow-sm"
+            className="text-gray-600 leading-relaxed text-sm"
             dangerouslySetInnerHTML={{ __html: product.description || "No detailed description available for this product." }}
           />
         </div>
 
         {/* Reviews Section */}
         <div className="mt-24">
-          <div className="flex items-center justify-between mb-16">
-            <h2 className="text-4xl font-black text-[#004d40] tracking-tight uppercase">Customer Reviews</h2>
-            <div className="hidden md:flex items-center gap-2 bg-emerald-50 px-6 py-3 rounded-2xl border border-emerald-100">
-              <Star size={20} className="text-yellow-400 fill-current" />
-              <span className="text-lg font-black text-emerald-800">{ratingStats.average} / 5.0</span>
+          <div className="flex items-center justify-between mb-12">
+            <h2 className="text-3xl font-black text-[#004d40] uppercase tracking-tight">Customer Reviews</h2>
+            <div className="hidden md:flex items-center gap-2 bg-[#e6fbf2] px-6 py-2 rounded-full">
+              <Star size={18} className="text-yellow-400 fill-current" />
+              <span className="text-lg font-black text-[#00a651]">{ratingStats.average} / 5.0</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
-            <div className="space-y-10">
-              <div className="flex items-center gap-8">
-                <span className="text-8xl font-black text-[#004d40] tracking-tighter">{ratingStats.average}</span>
-                <div className="space-y-2">
-                  <div className="font-black text-gray-800 uppercase text-sm tracking-[2px]">Store Rating</div>
-                  <div className="flex text-yellow-400 gap-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+            {/* Left Column: Stats */}
+            <div className="space-y-8">
+              <div className="flex items-center gap-6">
+                <span className="text-8xl font-black text-[#004d40] tracking-tighter leading-none">{Math.round(Number(ratingStats.average))}</span>
+                <div className="space-y-1">
+                  <div className="font-bold text-gray-800 uppercase text-xs tracking-[1px]">Store Rating</div>
+                  <div className="flex text-gray-200 text-lg">
+                    {/* Show 5 stars, fill based on rating */}
                     {[1, 2, 3, 4, 5].map(i => (
-                      <Star key={i} size={28} fill={i <= Number(ratingStats.average) ? "currentColor" : "none"} className={i <= Number(ratingStats.average) ? "" : "text-gray-200"} />
+                      <Star key={i} size={20} className={i <= Math.round(Number(ratingStats.average)) ? "text-yellow-400 fill-current" : "text-gray-200"} strokeWidth={2} />
                     ))}
                   </div>
                   <span className="text-gray-400 text-xs font-black uppercase tracking-widest block pt-1">{ratingStats.total} Honest Reviews</span>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="text-lg font-bold text-gray-600 mb-8">{ratingStats.recommendedPercent}% Recommended by our shoppers</div>
+              <div className="space-y-3">
+                <div className="text-sm font-bold text-gray-600 mb-4">{ratingStats.recommendedPercent}% Recommended by our shoppers</div>
                 {[5, 4, 3, 2, 1].map((star) => {
-                  // User requested fixed percentages based on star value: 1=20%, 2=40%, etc.
-                  const percent = star * 20;
+                  const percent = star * 20; // Static per requirements or calc real stats
                   return (
-                    <div key={star} className="flex items-center gap-6 group">
-                      <span className="text-sm font-black text-gray-500 w-4">{star}</span>
-                      <Star size={16} className="text-gray-300" />
-                      <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-[#00a651] rounded-full transition-all duration-1000" style={{ width: `${percent}%` }}></div>
+                    <div key={star} className="flex items-center gap-4 group">
+                      <span className="text-sm font-bold text-gray-800 w-3">{star}</span>
+                      <Star size={14} className="text-gray-300" />
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#00a651] rounded-full" style={{ width: `${percent}%` }}></div>
                       </div>
-                      <span className="text-sm font-bold text-gray-400 w-10 text-right">{percent}%</span>
+                      <span className="text-xs font-bold text-gray-400 w-8 text-right">{percent}%</span>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="bg-white p-10 md:p-12 rounded-[3rem] border-2 border-gray-50 shadow-xl shadow-emerald-50/50 space-y-8">
-              <div>
-                <h3 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tight">Share Your Thoughts</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Your feedback helps others shop better.</p>
+            {/* Right Column: Form */}
+            <div className="bg-white p-8 md:p-10 rounded-[2rem] border border-gray-100 shadow-sm">
+              <div className="mb-6">
+                <h3 className="text-xl font-black text-gray-800 mb-1 uppercase tracking-tight">Share Your Thoughts</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Your feedback helps others shop better.</p>
               </div>
 
               <div className="space-y-6">
-                <div className="space-y-3">
-                  <textarea
-                    value={reviewComment}
-                    onChange={(e) => setReviewComment(e.target.value)}
-                    placeholder="Describe your experience with this product..."
-                    className="w-full border-2 border-gray-100 rounded-[25px] p-6 h-48 outline-none focus:border-[#00a651] focus:ring-8 focus:ring-emerald-50 transition-all text-base placeholder:text-gray-300 bg-gray-50/30"
-                  />
-                </div>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Describe your experience with this product..."
+                  className="w-full border border-gray-200 rounded-xl p-4 h-32 outline-none focus:border-[#00a651] transition-all text-sm placeholder:text-gray-300 resize-none bg-gray-50/30"
+                />
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Rate:</span>
-                    <div className="flex gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Rate:</span>
+                    <div className="flex gap-1">
                       {[1, 2, 3, 4, 5].map(i => (
                         <Star
                           key={i}
-                          size={32}
+                          size={24}
                           onClick={() => setReviewRating(i)}
-                          className={`cursor-pointer transition-all hover:scale-125 active:scale-90 ${i <= reviewRating ? 'text-yellow-400 fill-current' : 'text-gray-200'}`}
+                          className={`cursor-pointer transition-all hover:scale-110 active:scale-90 stroke-2 ${i <= reviewRating ? 'text-yellow-400 fill-current' : 'text-gray-200'}`}
                         />
                       ))}
                     </div>
@@ -353,7 +393,7 @@ const ProductDetails: React.FC = () => {
                   <button
                     onClick={handleSubmitReview}
                     disabled={isSubmittingReview}
-                    className="w-full sm:w-auto bg-[#004d40] hover:bg-black text-white font-black py-5 px-12 rounded-[20px] transition-all text-xs uppercase tracking-[2px] shadow-2xl disabled:opacity-50 active:scale-95"
+                    className="w-full sm:w-auto bg-[#004d40] hover:bg-[#00382e] text-white font-black py-4 px-10 rounded-xl transition-all text-[10px] uppercase tracking-[2px] shadow-lg disabled:opacity-50 active:scale-95"
                   >
                     {isSubmittingReview ? "Processing..." : "Submit Review"}
                   </button>
@@ -362,36 +402,38 @@ const ProductDetails: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-20 pt-20 border-t border-gray-100">
+          <div className="mt-20">
             {productReviews.length === 0 ? (
-              <div className="text-center py-24 opacity-40">
-                <MessageCircle size={64} className="mx-auto text-gray-200 mb-6" />
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-sm">No reviews found yet. Be the first to share!</p>
+              <div className="flex flex-col items-center justify-center py-12 opacity-50">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <MessageCircle size={32} className="text-gray-300" />
+                </div>
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No reviews found yet. Be the first to share!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {productReviews.map((rev) => (
-                  <div key={rev.id} className="bg-gray-50/20 p-10 rounded-[2.5rem] border border-gray-100 hover:bg-white hover:shadow-xl transition-all group">
-                    <div className="flex justify-between items-start mb-8">
-                      <div className="flex gap-5 items-center">
-                        <div className="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center text-white font-black text-2xl shadow-lg">
+                  <div key={rev.id} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex gap-4 items-center">
+                        <div className="w-10 h-10 rounded-full bg-[#00a651] flex items-center justify-center text-white font-black text-sm shadow-md">
                           {rev.authorName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h4 className="font-black text-gray-800 text-base">{rev.authorName}</h4>
-                          <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">{new Date(rev.createdAt).toLocaleDateString()}</span>
+                          <h4 className="font-bold text-gray-800 text-sm">{rev.authorName}</h4>
+                          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{new Date(rev.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      <div className="flex text-yellow-400 group-hover:scale-110 transition-transform">
-                        {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} fill={i <= rev.rating ? "currentColor" : "none"} className={i <= rev.rating ? "" : "text-gray-200"} />)}
+                      <div className="flex text-yellow-400">
+                        {[1, 2, 3, 4, 5].map(i => <Star key={i} size={14} fill={i <= rev.rating ? "currentColor" : "none"} className={i <= rev.rating ? "" : "text-gray-200"} />)}
                       </div>
                     </div>
-                    <p className="text-gray-600 text-[16px] leading-[1.8] font-medium italic">"{rev.comment}"</p>
+                    <p className="text-gray-600 text-sm leading-relaxed italic">"{rev.comment}"</p>
 
                     {rev.reply && (
-                      <div className="mt-8 pl-8 border-l-4 border-[#00a651] py-4 bg-emerald-50/50 rounded-r-3xl">
-                        <span className="text-[11px] font-black text-emerald-600 uppercase tracking-[2px] block mb-3">Merchant Reply</span>
-                        <p className="text-gray-800 text-[15px] font-bold leading-relaxed">"{rev.reply}"</p>
+                      <div className="mt-6 pl-6 border-l-2 border-[#00a651] py-2 bg-emerald-50/30 rounded-r-xl">
+                        <span className="text-[10px] font-black text-[#00a651] uppercase tracking-wider block mb-1">Reply</span>
+                        <p className="text-gray-800 text-sm font-medium">"{rev.reply}"</p>
                       </div>
                     )}
                   </div>
@@ -400,6 +442,27 @@ const ProductDetails: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Related Products Section */}
+        {relatedProducts.length > 0 && (
+          <div className="mt-24">
+            <h2 className="text-3xl font-black text-[#0f172a] uppercase tracking-widest mb-12 text-center">Related Products</h2>
+            <div
+              ref={relatedScrollRef}
+              onMouseDown={handleRelatedMouseDown}
+              onMouseLeave={handleRelatedMouseLeave}
+              onMouseUp={handleRelatedMouseUp}
+              onMouseMove={handleRelatedMouseMove}
+              className="flex overflow-x-auto gap-4 snap-x scrollbar-hide cursor-grab active:cursor-grabbing md:grid md:grid-cols-4 md:gap-6 md:overflow-visible"
+            >
+              {relatedProducts.map(p => (
+                <div key={p.id} className="min-w-[calc(50%-8px)] snap-center flex-none md:min-w-0 md:w-auto">
+                  <ProductCard product={p} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

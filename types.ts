@@ -162,6 +162,15 @@ export interface StoreInfo {
   footer_description?: string;
   footer_links?: { label: string; url: string }[];
   app_links?: { ios?: string; android?: string };
+  floatingWidget?: {
+    whatsapp?: string;
+    messenger?: string;
+    facebook?: string;
+    instagram?: string;
+    phone?: string;
+    supportImage?: string;
+    isVisible?: boolean;
+  };
 }
 
 export interface HomeSection {
