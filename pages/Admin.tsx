@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
-import { supabase } from '../lib/supabase';
+
 
 import {
   Package, ShoppingBag, Plus, Trash2, X, ShieldCheck, Pencil,

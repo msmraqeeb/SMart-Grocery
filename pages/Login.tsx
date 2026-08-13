@@ -1,9 +1,7 @@
-
 import React, { useState } from 'react';
-import { useStore } from '../context/StoreContext';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 
 const Login: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,7 +13,7 @@ const Login: React.FC = () => {
     password: '',
     fullName: ''
   });
-  
+
   const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,28 +28,28 @@ const Login: React.FC = () => {
 
     try {
       if (isLogin) {
-        const { error: loginError } = await supabase.auth.signInWithPassword({
+        const res = await api.post('/auth/login', {
           email: formData.email,
           password: formData.password
         });
-        if (loginError) throw loginError;
+        if (res.token) {
+          localStorage.setItem('smart_grocery_token', res.token);
+          window.location.href = '/';
+          return;
+        }
       } else {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const res = await api.post('/auth/register', {
           email: formData.email,
           password: formData.password,
-          options: {
-            data: {
-              full_name: formData.fullName
-            }
-          }
+          full_name: formData.fullName
         });
-        if (signUpError) throw signUpError;
-        alert("Registration successful! You can now log in.");
-        setIsLogin(true);
-        setLoading(false);
-        return;
+        if (res.token) {
+          localStorage.setItem('smart_grocery_token', res.token);
+          alert("Registration successful!");
+          window.location.href = '/';
+          return;
+        }
       }
-      navigate('/');
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
     } finally {
@@ -60,7 +58,6 @@ const Login: React.FC = () => {
   };
 
   const handleForgotPassword = () => {
-    // Placeholder for reset password functionality
     alert("Password reset feature coming soon!");
   };
 
@@ -104,7 +101,7 @@ const Login: React.FC = () => {
                 />
               </div>
             )}
-            
+
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#00a651] transition-colors">
                 <Mail size={18} />
@@ -120,7 +117,7 @@ const Login: React.FC = () => {
                 placeholder="Email Address"
               />
             </div>
-            
+
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#00a651] transition-colors">
                 <Lock size={18} />

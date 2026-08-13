@@ -6,9 +6,8 @@ import {
     Gift, Smile, Sun, Droplets, ShoppingBasket, Tag,
     Globe, Anchor, Coffee, Package, Layers, Info, CheckCircle, ChevronDown, Mail, FileText, MessageSquare
 } from 'lucide-react';
-import { useStore } from '../context/StoreContext';
-import { supabase } from '../lib/supabase';
 import { uploadToImageKit } from '../lib/imagekit';
+
 
 // --- Types ---
 

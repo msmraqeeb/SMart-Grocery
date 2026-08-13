@@ -1,23 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import paymentHandler from './api/payment.js';
-import imagekitAuthHandler from './api/imagekit-auth.js';
-import apiRouter from './api/routes.js';
+import apiRouter from './routes.js';
+import paymentHandler from './payment.js';
+import imagekitAuthHandler from './imagekit-auth.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.API_PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
-
-// Logging middleware
-app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    next();
-});
 
 // Mount DB REST API Router
 app.use('/api', apiRouter);
@@ -35,6 +28,4 @@ const vercelWrapper = (handler) => async (req, res) => {
 app.post('/api/payment', vercelWrapper(paymentHandler));
 app.get('/api/imagekit-auth', vercelWrapper(imagekitAuthHandler));
 
-app.listen(PORT, () => {
-    console.log(`API Server running on http://localhost:${PORT}`);
-});
+export default app;

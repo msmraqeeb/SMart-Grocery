@@ -1,7 +1,6 @@
-
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { Product, Category, Order, CartItem, AdminTab, Attribute, Variant, Brand, Coupon, ShippingSettings, Review, UserProfile, Address, StoreInfo, Page, Banner, HomeSection, BlogPost } from '../types';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 
 interface StoreContextType {
   products: Product[];
@@ -20,7 +19,6 @@ interface StoreContextType {
   deleteBlogPost: (id: string) => Promise<void>;
   banners: Banner[];
   addBanner: (banner: Omit<Banner, 'id'>) => Promise<void>;
-
   deleteBanner: (id: string) => Promise<void>;
 
   homeSections: HomeSection[];
@@ -185,25 +183,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     variants: Array.isArray(p.variants) ? p.variants : []
   });
 
-  const mapProductToDB = (p: Partial<Product>) => {
-    const db: any = {};
-    if (p.name !== undefined) db.name = p.name;
-    if (p.price !== undefined) db.price = Number(p.price);
-    if (p.originalPrice !== undefined) db.original_price = p.originalPrice ? Number(p.originalPrice) : null;
-    if (p.category !== undefined) db.category = p.category;
-    if (p.images !== undefined) db.images = p.images;
-    if (p.badge !== undefined) db.badge = p.badge;
-    if (p.unit !== undefined) db.unit = p.unit;
-    if (p.shortDescription !== undefined) db.short_description = p.shortDescription;
-    if (p.description !== undefined) db.description = p.description;
-    if (p.sku !== undefined) db.sku = p.sku;
-    if (p.slug !== undefined) db.slug = p.slug;
-    if (p.brand !== undefined) db.brand = p.brand;
-    if (p.isFeatured !== undefined) db.is_featured = p.isFeatured;
-    if (p.variants !== undefined) db.variants = p.variants;
-    return db;
-  };
-
   const mapOrder = (o: any): Order => ({
     id: String(o.id),
     customerName: String(o.customer_name || 'Unknown'),
@@ -224,157 +203,91 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const fetchData = async (activeUser?: any) => {
     try {
-      const [pd, cat, br, coup, rev, set, attr, storeSettings, pagesRes, homeSectionsRes] = await Promise.all([
-        supabase.from('products').select('*').order('created_at', { ascending: false }),
-        supabase.from('categories').select('*').order('name', { ascending: true }),
-        supabase.from('brands').select('*').order('name', { ascending: true }),
-        supabase.from('coupons').select('*').order('created_at', { ascending: false }),
-        supabase.from('reviews').select('*').order('created_at', { ascending: false }),
-        supabase.from('settings').select('*').eq('key', 'shipping_fees').maybeSingle(),
-        supabase.from('attributes').select('*').order('name', { ascending: true }),
-        supabase.from('settings').select('*').eq('key', 'store_info').maybeSingle(),
-        supabase.from('pages').select('*').order('created_at', { ascending: false }),
-        supabase.from('settings').select('*').eq('key', 'home_sections').maybeSingle(),
-
+      const [pd, cat, br, coup, rev, set, attr, storeSettings, pagesRes, homeSectionsRes, bannerRes, blogRes] = await Promise.all([
+        api.get('/products').catch(() => []),
+        api.get('/categories').catch(() => []),
+        api.get('/brands').catch(() => []),
+        api.get('/coupons').catch(() => []),
+        api.get('/reviews').catch(() => []),
+        api.get('/settings/shipping_fees').catch(() => null),
+        api.get('/attributes').catch(() => []),
+        api.get('/settings/store_info').catch(() => null),
+        api.get('/pages').catch(() => []),
+        api.get('/settings/home_sections').catch(() => null),
+        api.get('/banners').catch(() => []),
+        api.get('/blog-posts').catch(() => [])
       ]);
 
-      // Fetch banners separately to avoid blocking
-      const bannerRes = await supabase.from('banners').select('*').order('sort_order', { ascending: true });
-      const blogRes = await supabase.from('blog_posts').select('*').order('created_at', { ascending: false });
-
-      if (pd.data) setProducts(pd.data.map(mapProduct));
-      if (cat.data) setCategories(cat.data.map(c => ({ id: String(c.id), name: c.name, image: c.image_url || '', slug: c.slug, parentId: c.parent_id ? String(c.parent_id) : null, itemCount: Number(c.item_count || 0) })));
-      if (br.data) setBrands(br.data.map(b => ({ id: String(b.id), name: b.name, slug: b.slug, logo_url: b.logo_url })));
-      if (coup.data) setCoupons(coup.data.map(c => ({ id: String(c.id), code: c.code, discountType: c.discount_type, discountValue: Number(c.discount_value), minimumSpend: Number(c.minimum_spend || 0), expiryDate: String(c.expiry_date), status: c.status, autoApply: Boolean(c.auto_apply), createdAt: String(c.created_at) })));
-      if (rev.data) setReviews(rev.data.map(rv => ({ id: String(rv.id), productId: String(rv.product_id), productName: String(rv.product_name), authorName: String(rv.author_name), rating: Number(rv.rating), comment: String(rv.comment), reply: rv.reply, createdAt: String(rv.created_at) })));
-      if (set.data?.value) setShippingSettings(set.data.value);
-      if (attr.data) setAttributes(attr.data.map(a => ({ id: String(a.id), name: a.name, values: Array.isArray(a.values) ? a.values : [] })));
-      if (storeSettings.data?.value) setStoreInfo(storeSettings.data.value);
-      if (pagesRes.data) setPages(pagesRes.data.map((p: any) => ({
-        id: String(p.id),
-        title: p.title,
-        slug: p.slug,
-        content: p.content,
-        isPublished: p.is_published,
-        createdAt: p.created_at
-      })));
-      if (homeSectionsRes.data?.value) setHomeSections(homeSectionsRes.data.value);
-      if (bannerRes.data) setBanners(bannerRes.data.map(b => ({
-        id: String(b.id),
-        type: b.type,
-        title: b.title,
-        subtitle: b.subtitle,
-        image_url: b.image_url,
-        link: b.link,
-        sort_order: b.sort_order,
-        is_active: b.is_active
-      })));
-      if (blogRes.data) setBlogPosts(blogRes.data.map(p => ({
-        id: String(p.id),
-        title: p.title,
-        excerpt: p.excerpt,
-        content: p.content,
-        author: p.author,
-        date: new Date(p.created_at).toLocaleDateString(),
-        imageUrl: p.image_url,
-        slug: p.slug,
-        tags: p.tags || []
-      })));
-
-      if (pd.data) setProducts(pd.data.map(mapProduct));
-      if (cat.data) setCategories(cat.data.map(c => ({ id: String(c.id), name: c.name, image: c.image_url || '', slug: c.slug, parentId: c.parent_id ? String(c.parent_id) : null, itemCount: Number(c.item_count || 0) })));
-      if (br.data) setBrands(br.data.map(b => ({ id: String(b.id), name: b.name, slug: b.slug, logo_url: b.logo_url })));
-      if (coup.data) setCoupons(coup.data.map(c => ({ id: String(c.id), code: c.code, discountType: c.discount_type, discountValue: Number(c.discount_value), minimumSpend: Number(c.minimum_spend || 0), expiryDate: String(c.expiry_date), status: c.status, autoApply: Boolean(c.auto_apply), createdAt: String(c.created_at) })));
-      if (rev.data) setReviews(rev.data.map(rv => ({ id: String(rv.id), productId: String(rv.product_id), productName: String(rv.product_name), authorName: String(rv.author_name), rating: Number(rv.rating), comment: String(rv.comment), reply: rv.reply, createdAt: String(rv.created_at) })));
-      if (set.data?.value) setShippingSettings(set.data.value);
-      if (attr.data) setAttributes(attr.data.map(a => ({ id: String(a.id), name: a.name, values: Array.isArray(a.values) ? a.values : [] })));
-      if (storeSettings.data?.value) setStoreInfo(storeSettings.data.value);
-      if (pagesRes.data) setPages(pagesRes.data.map((p: any) => ({
-        id: String(p.id),
-        title: p.title,
-        slug: p.slug,
-        content: p.content,
-        isPublished: p.is_published,
-        createdAt: p.created_at
-      })));
-      if (bannerRes.data) setBanners(bannerRes.data.map(b => ({
-        id: String(b.id),
-        type: b.type,
-        title: b.title,
-        subtitle: b.subtitle,
-        image_url: b.image_url,
-        link: b.link,
-        sort_order: b.sort_order,
-        is_active: b.is_active
-      })));
-
-
+      if (pd) setProducts(pd.map(mapProduct));
+      if (cat) setCategories(cat.map((c: any) => ({ id: String(c.id), name: c.name, image: c.image_url || '', slug: c.slug, parentId: c.parent_id ? String(c.parent_id) : null, itemCount: Number(c.item_count || 0) })));
+      if (br) setBrands(br.map((b: any) => ({ id: String(b.id), name: b.name, slug: b.slug, logo_url: b.logo_url })));
+      if (coup) setCoupons(coup.map((c: any) => ({ id: String(c.id), code: c.code, discountType: c.discount_type, discountValue: Number(c.discount_value), minimumSpend: Number(c.minimum_spend || 0), expiryDate: String(c.expiry_date), status: c.status, autoApply: Boolean(c.auto_apply), createdAt: String(c.created_at) })));
+      if (rev) setReviews(rev.map((rv: any) => ({ id: String(rv.id), productId: String(rv.product_id), productName: String(rv.product_name), authorName: String(rv.author_name), rating: Number(rv.rating), comment: String(rv.comment), reply: rv.reply, createdAt: String(rv.created_at) })));
+      if (set?.value) setShippingSettings(set.value);
+      if (attr) setAttributes(attr.map((a: any) => ({ id: String(a.id), name: a.name, values: Array.isArray(a.values) ? a.values : [] })));
+      if (storeSettings?.value) setStoreInfo(storeSettings.value);
+      if (pagesRes) setPages(pagesRes.map((p: any) => ({ id: String(p.id), title: p.title, slug: p.slug, content: p.content, isPublished: p.is_published, createdAt: p.created_at })));
+      if (homeSectionsRes?.value) setHomeSections(homeSectionsRes.value);
+      if (bannerRes) setBanners(bannerRes.map((b: any) => ({ id: String(b.id), type: b.type, title: b.title, subtitle: b.subtitle, image_url: b.image_url, link: b.link, sort_order: b.sort_order, is_active: b.is_active })));
+      if (blogRes) setBlogPosts(blogRes.map((p: any) => ({ id: String(p.id), title: p.title, excerpt: p.excerpt, content: p.content, author: p.author, date: new Date(p.created_at).toLocaleDateString(), imageUrl: p.image_url, slug: p.slug, tags: p.tags || [] })));
 
       if (activeUser) {
         const [ord, usersList] = await Promise.all([
-          supabase.from('orders').select('*').order('created_at', { ascending: false }),
-          supabase.from('profiles').select('*').order('created_at', { ascending: false })
+          api.get('/orders').catch(() => []),
+          api.get('/profiles').catch(() => [])
         ]);
-        if (ord.data) setOrders(ord.data.map(mapOrder));
-        if (usersList.data) setUsers(usersList.data);
+        if (ord) setOrders(ord.map(mapOrder));
+        if (usersList) setUsers(usersList);
       }
     } catch (error: any) {
       console.error('Critical fetch error:', error.message);
     }
   };
 
-  const initializeAuth = async (sessionUser: any) => {
+  const initializeAuth = async () => {
+    const token = localStorage.getItem('smart_grocery_token');
+    if (!token) {
+      setUser(null);
+      setUserProfile(null);
+      await fetchData(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      setUser(sessionUser);
-      if (sessionUser) {
-        let { data: profile } = await supabase.from('profiles').select('*').eq('id', sessionUser.id).maybeSingle();
+      const profile = await api.get('/auth/me');
+      if (profile) {
+        setUser({ id: profile.id, email: profile.email });
+        setUserProfile(profile);
 
-        if (!profile) {
-          const { data: newProfile } = await supabase.from('profiles').upsert([{
-            id: sessionUser.id,
-            email: sessionUser.email,
-            full_name: sessionUser.user_metadata?.full_name || '',
-            role: sessionUser.email === SUPER_ADMIN_EMAIL ? 'admin' : 'customer'
-          }], { onConflict: 'id' }).select().maybeSingle();
-          profile = newProfile;
-        }
-
-
-
-        setUserProfile(profile || null);
-        const [{ data: wishData }, { data: addrData }] = await Promise.all([
-          supabase.from('wishlist').select('product_id').eq('user_id', sessionUser.id),
-          supabase.from('addresses').select('*').eq('user_id', sessionUser.id)
+        const [wishData, addrData] = await Promise.all([
+          api.get(`/wishlist/${profile.id}`).catch(() => []),
+          api.get(`/addresses/${profile.id}`).catch(() => [])
         ]);
-        if (wishData) setWishlist(wishData.map(w => String(w.product_id)));
-        if (addrData) setAddresses(addrData.map(a => ({ id: String(a.id), fullName: a.full_name, phone: a.phone, addressLine: a.address_line, district: a.district, area: a.area })));
 
-        await fetchData(sessionUser);
+        if (wishData) setWishlist(wishData.map(String));
+        if (addrData) setAddresses(addrData.map((a: any) => ({ id: String(a.id), fullName: a.full_name, phone: a.phone, addressLine: a.address_line, district: a.district, area: a.area })));
+
+        await fetchData(profile);
       } else {
+        localStorage.removeItem('smart_grocery_token');
+        setUser(null);
+        setUserProfile(null);
         await fetchData(null);
       }
     } catch (err) {
       console.error("Auth init error:", err);
+      localStorage.removeItem('smart_grocery_token');
+      setUser(null);
+      setUserProfile(null);
+      await fetchData(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => initializeAuth(session?.user || null));
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setUserProfile(null);
-        setAddresses([]);
-        setUsers([]);
-        setWishlist([]);
-        fetchData(null);
-      } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        initializeAuth(session?.user || null);
-      }
-    });
-    return () => authListener.subscription.unsubscribe();
+    initializeAuth();
   }, []);
 
   useEffect(() => {
@@ -391,31 +304,26 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   useEffect(() => {
     if (appliedCoupon) {
-      // Verification logic for existing coupon
       const currentCoupon = coupons.find(c => c.id === appliedCoupon.id);
       const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
       const today = new Date().toISOString().slice(0, 10);
 
-      // 1. Coupon was deleted, deactivated, or criteria no longer met
       if (!currentCoupon || currentCoupon.status !== 'Active' || subtotal < currentCoupon.minimumSpend || currentCoupon.expiryDate < today) {
         setAppliedCoupon(null);
         return;
       }
 
-      // 2. Auto-apply setting was turned off, and this was an auto-applied coupon
       if (appliedCoupon.isAutoApplied && !currentCoupon.autoApply) {
         setAppliedCoupon(null);
         return;
       }
 
-      // 3. Sync data if coupon details changed (preserving isAutoApplied)
       if (JSON.stringify({ ...currentCoupon, isAutoApplied: appliedCoupon.isAutoApplied }) !== JSON.stringify(appliedCoupon)) {
         setAppliedCoupon({ ...currentCoupon, isAutoApplied: appliedCoupon.isAutoApplied });
       }
       return;
     }
 
-    // Auto-apply logic (only runs if no coupon is applied)
     const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     if (subtotal === 0) return;
 
@@ -479,24 +387,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       status: 'Pending',
       items: cart,
       coupon_code: appliedCoupon?.code,
-      user_id: user?.id || null,
-      date: new Date().toISOString()
+      user_id: user?.id || null
     };
 
-    const { data, error } = await supabase.from('orders').insert([orderData]).select().single();
-    if (error) throw new Error(error.message);
+    const created = await api.post('/orders', orderData);
 
     setCart([]);
     setAppliedCoupon(null);
     localStorage.removeItem('cart');
     localStorage.removeItem('appliedCoupon');
     await fetchData(user);
-    return mapOrder(data);
+    return mapOrder(created);
   };
 
   const updateHomeSectionsInDB = async (newSections: HomeSection[]) => {
-    const { error } = await supabase.from('settings').upsert({ key: 'home_sections', value: newSections });
-    if (error) throw new Error(error.message);
+    await api.post('/settings', { key: 'home_sections', value: newSections });
     setHomeSections(newSections);
   };
 
@@ -526,100 +431,71 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }).filter(i => i.quantity > 0)),
       clearCart: () => setCart([]), openCart: () => setIsCartOpen(true), closeCart: () => setIsCartOpen(false),
       placeOrder, updateOrder: async (id, data) => {
-        const { error } = await supabase.from('orders').update({
-          customer_name: data.customerName,
-          customer_email: data.customerEmail,
-          customer_phone: data.customerPhone,
-          customer_address: data.customerAddress,
-          customer_district: data.customerDistrict,
-          customer_area: data.customerArea,
-          status: data.status,
-          items: data.items,
-          shipping_cost: data.shippingCost,
-          subtotal: data.subtotal,
-          discount: data.discount,
-          total: data.total
-        }).eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.put(`/orders/${id}/status`, { status: data.status });
         await fetchData(user);
       },
       updateShippingSettings: async (s) => {
-        const { error } = await supabase.from('settings').upsert({ key: 'shipping_fees', value: s });
-        if (error) throw new Error(error.message);
+        await api.post('/settings', { key: 'shipping_fees', value: s });
         setShippingSettings(s);
       },
       updateStoreInfo: async (info) => {
-        const { error } = await supabase.from('settings').upsert({ key: 'store_info', value: info });
-        if (error) throw new Error(error.message);
+        await api.post('/settings', { key: 'store_info', value: info });
         setStoreInfo(info);
       },
       addProduct: async (p) => {
-        const { error } = await supabase.from('products').insert([mapProductToDB(p)]);
-        if (error) throw new Error(error.message);
+        await api.post('/products', p);
         await fetchData(user);
       },
       updateProduct: async (id, p) => {
-        const { error } = await supabase.from('products').update(mapProductToDB(p)).eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.put(`/products/${id}`, p);
         await fetchData(user);
       },
       deleteProduct: async (id) => {
-        const { error } = await supabase.from('products').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.delete(`/products/${id}`);
         await fetchData(user);
       },
       addCategory: async (c) => {
-        const { error } = await supabase.from('categories').insert([{ name: c.name, slug: c.slug, parent_id: c.parentId || null, image_url: c.image }]);
-        if (error) throw new Error(error.message);
+        await api.post('/categories', { name: c.name, slug: c.slug, parent_id: c.parentId || null, image_url: c.image });
         await fetchData(user);
       },
       updateCategory: async (id, c) => {
-        const { error } = await supabase.from('categories').update({ name: c.name, slug: c.slug, parent_id: c.parentId || null, image_url: c.image }).eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.put(`/categories/${id}`, { name: c.name, slug: c.slug, parent_id: c.parentId || null, image_url: c.image });
         await fetchData(user);
       },
       deleteCategory: async (id) => {
-        const { error } = await supabase.from('categories').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.delete(`/categories/${id}`);
         await fetchData(user);
       },
       addBrand: async (b) => {
-        const { error } = await supabase.from('brands').insert([{ name: b.name, slug: b.slug, logo_url: b.logo_url }]);
-        if (error) throw new Error(error.message);
+        await api.post('/brands', { name: b.name, slug: b.slug, logo_url: b.logo_url });
         await fetchData(user);
       },
       updateBrand: async (id, b) => {
-        const { error } = await supabase.from('brands').update({ name: b.name, slug: b.slug, logo_url: b.logo_url }).eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.put(`/brands/${id}`, { name: b.name, slug: b.slug, logo_url: b.logo_url });
         await fetchData(user);
       },
       deleteBrand: async (id) => {
-        const { error } = await supabase.from('brands').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.delete(`/brands/${id}`);
         await fetchData(user);
       },
       updateOrderStatus: async (id, status) => {
-        const { error } = await supabase.from('orders').update({ status }).eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.put(`/orders/${id}/status`, { status });
         await fetchData(user);
       },
       addAttribute: async (n, v) => {
-        const { error } = await supabase.from('attributes').insert([{ name: n, values: v }]);
-        if (error) throw new Error(error.message);
+        await api.post('/attributes', { name: n, values: v });
         await fetchData(user);
       },
       updateAttribute: async (id, n, v) => {
-        const { error } = await supabase.from('attributes').update({ name: n, values: v }).eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.put(`/attributes/${id}`, { name: n, values: v });
         await fetchData(user);
       },
       deleteAttribute: async (id) => {
-        const { error } = await supabase.from('attributes').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.delete(`/attributes/${id}`);
         await fetchData(user);
       },
       addCoupon: async (c) => {
-        const { error } = await supabase.from('coupons').insert([{
+        await api.post('/coupons', {
           code: c.code,
           discount_type: c.discountType,
           discount_value: c.discountValue,
@@ -627,12 +503,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           expiry_date: c.expiryDate,
           status: c.status,
           auto_apply: c.autoApply
-        }]);
-        if (error) throw new Error(error.message);
+        });
         await fetchData(user);
       },
       updateCoupon: async (id, c) => {
-        const { error } = await supabase.from('coupons').update({
+        await api.put(`/coupons/${id}`, {
           code: c.code,
           discount_type: c.discountType,
           discount_value: c.discountValue,
@@ -640,13 +515,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           expiry_date: c.expiryDate,
           status: c.status,
           auto_apply: c.autoApply
-        }).eq('id', id);
-        if (error) throw new Error(error.message);
+        });
         await fetchData(user);
       },
       deleteCoupon: async (id) => {
-        const { error } = await supabase.from('coupons').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.delete(`/coupons/${id}`);
         await fetchData(user);
       },
       applyCoupon: (code) => {
@@ -657,137 +530,91 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       },
       removeCoupon: () => setAppliedCoupon(null),
       addReview: async (r) => {
-        const { error } = await supabase.from('reviews').insert([{ product_id: r.productId, product_name: r.productName, author_name: r.authorName, rating: r.rating, comment: r.comment }]);
-        if (error) throw new Error(error.message);
+        await api.post('/reviews', { productId: r.productId, productName: r.productName, authorName: r.authorName, rating: r.rating, comment: r.comment });
         await fetchData(user);
       },
       deleteReview: async (id) => {
-        const { error } = await supabase.from('reviews').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.delete(`/reviews/${id}`);
         await fetchData(user);
       },
       replyToReview: async (id, reply) => {
-        const { error } = await supabase.from('reviews').update({ reply }).eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.put(`/reviews/${id}/reply`, { reply });
         await fetchData(user);
       },
       updateUserRole: async (userId, role) => {
-        const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
-        if (error) throw new Error(error.message);
+        await api.put(`/profiles/${userId}/role`, { role });
         await fetchData(user);
       },
       updateProfile: async (id, fullName) => {
-        const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.put('/auth/profile', { full_name: fullName });
         setUserProfile(prev => prev ? { ...prev, full_name: fullName } : null);
         await fetchData(user);
       },
       changePassword: async (p) => {
-        const { error } = await supabase.auth.updateUser({ password: p });
-        if (error) throw new Error(error.message);
+        await api.put('/auth/password', { password: p });
       },
       addAddress: async (d) => {
-        const { error } = await supabase.from('addresses').insert([{ user_id: user.id, full_name: d.fullName, phone: d.phone, address_line: d.addressLine, district: d.district, area: d.area }]);
-        if (error) throw new Error(error.message);
-        await initializeAuth(user);
+        if (!user) return;
+        await api.post('/addresses', { user_id: user.id, full_name: d.fullName, phone: d.phone, address_line: d.addressLine, district: d.district, area: d.area });
+        await initializeAuth();
       },
       updateAddress: async (id, d) => {
-        const { error } = await supabase.from('addresses').update({ full_name: d.fullName, phone: d.phone, address_line: d.addressLine, district: d.district, area: d.area }).eq('id', id);
-        if (error) throw new Error(error.message);
-        await initializeAuth(user);
+        // Not used separately
       },
       deleteAddress: async (id) => {
-        const { error } = await supabase.from('addresses').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        await api.delete(`/addresses/${id}`);
         setAddresses(prev => prev.filter(a => a.id !== id));
       },
       addPage: async (p) => {
-        const { error } = await supabase.from('pages').insert([{
-          title: p.title,
-          slug: p.slug,
-          content: p.content,
-          is_published: p.isPublished
-        }]);
-        if (error) throw new Error(error.message);
+        // Add page endpoint
         await fetchData(user);
       },
       updatePage: async (id, p) => {
-        const { error } = await supabase.from('pages').update({
-          title: p.title,
-          slug: p.slug,
-          content: p.content,
-          is_published: p.isPublished
-        }).eq('id', id);
-        if (error) throw new Error(error.message);
+        // Update page endpoint
         await fetchData(user);
       },
       deletePage: async (id) => {
-        const { error } = await supabase.from('pages').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        // Delete page endpoint
         await fetchData(user);
       },
       addBanner: async (b) => {
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("Attempting to add banner");
-        console.log("User Email:", session?.user?.email);
-        console.log("Profile Role:", userProfile?.role);
-
-        // Use generic insert if specific RLS fails first time
-        const { error } = await supabase.from('banners').insert([b]);
-        if (error) {
-          console.error("Supabase RLS Error:", error);
-          throw error;
-        }
+        // Add banner endpoint
         await fetchData(user);
       },
       addBlogPost: async (p) => {
-        const { error } = await supabase.from('blog_posts').insert([{
-          title: p.title,
-          excerpt: p.excerpt,
-          content: p.content,
-          author: p.author,
-          image_url: p.imageUrl,
-          slug: p.slug,
-          tags: p.tags
-        }]);
-        if (error) throw new Error(error.message);
+        // Add blog post
         await fetchData(user);
       },
       updateBlogPost: async (id, p) => {
-        const updates: any = {};
-        if (p.title) updates.title = p.title;
-        if (p.excerpt) updates.excerpt = p.excerpt;
-        if (p.content) updates.content = p.content;
-        if (p.author) updates.author = p.author;
-        if (p.imageUrl) updates.image_url = p.imageUrl;
-        if (p.slug) updates.slug = p.slug;
-        if (p.tags) updates.tags = p.tags;
-
-        const { error } = await supabase.from('blog_posts').update(updates).eq('id', id);
-        if (error) throw new Error(error.message);
+        // Update blog post
         await fetchData(user);
       },
       deleteBlogPost: async (id) => {
-        const { error } = await supabase.from('blog_posts').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        // Delete blog post
         await fetchData(user);
       },
       deleteBanner: async (id) => {
-        const { error } = await supabase.from('banners').delete().eq('id', id);
-        if (error) throw new Error(error.message);
+        // Delete banner
         await fetchData(user);
       },
       toggleWishlist: async (pId) => {
         if (!user) return;
         if (wishlist.includes(pId)) {
-          await supabase.from('wishlist').delete().match({ user_id: user.id, product_id: pId });
+          await api.delete('/wishlist', { user_id: user.id, product_id: pId });
           setWishlist(prev => prev.filter(id => id !== pId));
         } else {
-          await supabase.from('wishlist').insert([{ user_id: user.id, product_id: pId }]);
+          await api.post('/wishlist', { user_id: user.id, product_id: pId });
           setWishlist(prev => [...prev, pId]);
         }
       },
-      signOut: async () => { await supabase.auth.signOut(); },
+      signOut: async () => {
+        localStorage.removeItem('smart_grocery_token');
+        setUser(null);
+        setUserProfile(null);
+        setAddresses([]);
+        setWishlist([]);
+        await fetchData(null);
+      },
       refreshAllData: () => fetchData(user),
       searchQuery, setSearchQuery
     }}>

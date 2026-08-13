@@ -13,6 +13,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "@types/dompurify": "^3.0.5",
+    "bcryptjs": "^3.0.3",
     "concurrently": "^9.2.1",
     "cors": "^2.8.6",
     "dompurify": "^3.3.1",
@@ -20,7 +21,9 @@
     "express": "^5.2.1",
     "imagekit": "^6.0.0",
     "imagekitio-react": "^4.3.0",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.454.0",
+    "mysql2": "^3.23.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.3",
