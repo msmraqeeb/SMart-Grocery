@@ -50,6 +50,21 @@ function formatRow($row) {
     return $row;
 }
 
+function getAuthUser($pdo) {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $token = trim(str_replace('Bearer ', '', $authHeader));
+    if (!$token) return null;
+
+    $decoded = json_decode(base64_decode($token), true);
+    if (!$decoded || empty($decoded['id'])) return null;
+
+    $stmt = $pdo->prepare("SELECT id, email, full_name, role, created_at FROM profiles WHERE id = ?");
+    $stmt->execute([$decoded['id']]);
+    $row = $stmt->fetch();
+    return $row ? formatRow($row) : null;
+}
+
 try {
     switch ($action) {
         case 'products':
@@ -206,18 +221,64 @@ try {
             }
             break;
 
+        case 'me':
+            $authUser = getAuthUser($pdo);
+            if ($authUser) {
+                echo json_encode($authUser);
+            } else {
+                http_response_code(401);
+                echo json_encode(["error" => "Unauthorized"]);
+            }
+            break;
+
         case 'login':
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("SELECT * FROM profiles WHERE email = ?");
                 $stmt->execute([$input['email']]);
                 $userRow = $stmt->fetch();
                 if ($userRow) {
-                    $token = bin2hex(random_bytes(16));
-                    echo json_encode(["token" => $token, "user" => formatRow($userRow)]);
+                    if (!empty($userRow['password']) && !password_verify($input['password'], $userRow['password'])) {
+                        http_response_code(400);
+                        echo json_encode(["error" => "Invalid email or password"]);
+                        exit();
+                    }
+                    $token = base64_encode(json_encode([
+                        "id" => $userRow['id'],
+                        "email" => $userRow['email'],
+                        "role" => $userRow['role'],
+                        "time" => time()
+                    ]));
+                    $formattedUser = formatRow($userRow);
+                    unset($formattedUser['password']);
+                    echo json_encode(["token" => $token, "user" => $formattedUser]);
                 } else {
                     http_response_code(400);
                     echo json_encode(["error" => "Invalid email or password"]);
                 }
+            }
+            break;
+
+        case 'register':
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $stmt = $pdo->prepare("SELECT * FROM profiles WHERE email = ?");
+                $stmt->execute([$input['email']]);
+                if ($stmt->fetch()) {
+                    http_response_code(400);
+                    echo json_encode(["error" => "Email already registered"]);
+                    exit();
+                }
+                $hash = password_hash($input['password'], PASSWORD_BCRYPT);
+                $userId = 'usr_' . time() . '_' . substr(md5(mt_rand()), 0, 6);
+                $role = ($input['email'] === 'msmraqeeb@gmail.com') ? 'admin' : 'customer';
+                $stmt = $pdo->prepare("INSERT INTO profiles (id, email, password, full_name, role) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$userId, $input['email'], $hash, $input['full_name'] ?? '', $role]);
+                $token = base64_encode(json_encode([
+                    "id" => $userId,
+                    "email" => $input['email'],
+                    "role" => $role,
+                    "time" => time()
+                ]));
+                echo json_encode(["token" => $token, "user" => ["id" => $userId, "email" => $input['email'], "full_name" => $input['full_name'] ?? '', "role" => $role]]);
             }
             break;
 
