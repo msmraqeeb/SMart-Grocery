@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const PHP_API_URL = import.meta.env.VITE_API_URL || 'https://kidsparadise.com.bd/smart-grocery/api.php';
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('smart_grocery_token');
@@ -11,8 +11,39 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
+function resolvePhpAction(endpoint: string): string {
+  const clean = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  
+  if (clean.startsWith('settings/')) {
+    const key = clean.split('/')[1];
+    return `${PHP_API_URL}?action=settings&key=${key}`;
+  }
+  if (clean.startsWith('wishlist/')) {
+    const userId = clean.split('/')[1];
+    return `${PHP_API_URL}?action=wishlist&userId=${userId}`;
+  }
+  if (clean.startsWith('addresses/')) {
+    const userId = clean.split('/')[1];
+    return `${PHP_API_URL}?action=addresses&userId=${userId}`;
+  }
+  if (clean.startsWith('auth/login')) {
+    return `${PHP_API_URL}?action=login`;
+  }
+  if (clean.startsWith('auth/register')) {
+    return `${PHP_API_URL}?action=register`;
+  }
+  if (clean.startsWith('auth/me')) {
+    return `${PHP_API_URL}?action=me`;
+  }
+  if (clean.includes('/')) {
+    const parts = clean.split('/');
+    return `${PHP_API_URL}?action=${parts[0]}&id=${parts[1]}`;
+  }
+  return `${PHP_API_URL}?action=${clean}`;
+}
+
 export async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+  const url = resolvePhpAction(endpoint);
   const response = await fetch(url, {
     ...options,
     headers: {
