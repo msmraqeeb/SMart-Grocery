@@ -42,7 +42,6 @@ export function authenticateToken(req, res, next) {
 // 1. AUTHENTICATION ROUTES
 // ==========================================
 
-// Register
 router.post('/auth/register', async (req, res) => {
   const { email, password, full_name } = req.body;
   if (!email || !password) {
@@ -70,11 +69,10 @@ router.post('/auth/register', async (req, res) => {
     res.json({ token, user });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Failed to register user' });
+    res.status(500).json({ error: error.message || 'Failed to register user' });
   }
 });
 
-// Login
 router.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -106,33 +104,30 @@ router.post('/auth/login', async (req, res) => {
     res.json({ token, user });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: error.message || 'Login failed' });
   }
 });
 
-// Get Current Profile
 router.get('/auth/me', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT id, email, full_name, role, created_at FROM profiles WHERE id = ?', [req.user.id]);
-    if (rows.length === 0) return res.status(444).json({ error: 'User not found' });
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
     res.json(formatRow(rows[0]));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch user' });
+    res.status(500).json({ error: error.message || 'Failed to fetch user' });
   }
 });
 
-// Update Profile Name
 router.put('/auth/profile', authenticateToken, async (req, res) => {
   const { full_name } = req.body;
   try {
     await pool.query('UPDATE profiles SET full_name = ? WHERE id = ?', [full_name, req.user.id]);
     res.json({ success: true, full_name });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update profile' });
+    res.status(500).json({ error: error.message || 'Failed to update profile' });
   }
 });
 
-// Update Password
 router.put('/auth/password', authenticateToken, async (req, res) => {
   const { password } = req.body;
   try {
@@ -140,28 +135,26 @@ router.put('/auth/password', authenticateToken, async (req, res) => {
     await pool.query('UPDATE profiles SET password = ? WHERE id = ?', [hashedPassword, req.user.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update password' });
+    res.status(500).json({ error: error.message || 'Failed to update password' });
   }
 });
 
-// Admin: Get all profiles
 router.get('/profiles', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT id, email, full_name, role, created_at FROM profiles ORDER BY created_at DESC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch profiles' });
+    res.status(500).json({ error: error.message || 'Failed to fetch profiles' });
   }
 });
 
-// Admin: Update user role
 router.put('/profiles/:id/role', async (req, res) => {
   const { role } = req.body;
   try {
     await pool.query('UPDATE profiles SET role = ? WHERE id = ?', [role, req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update role' });
+    res.status(500).json({ error: error.message || 'Failed to update role' });
   }
 });
 
@@ -169,13 +162,13 @@ router.put('/profiles/:id/role', async (req, res) => {
 // 2. PRODUCTS & CATEGORIES & BRANDS
 // ==========================================
 
-// Products
 router.get('/products', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch products' });
+    console.error('Fetch products DB Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch products', details: String(error) });
   }
 });
 
@@ -191,8 +184,7 @@ router.post('/products', async (req, res) => {
     );
     res.json({ id: result.insertId, ...p });
   } catch (error) {
-    console.error('Insert product error:', error);
-    res.status(500).json({ error: 'Failed to insert product' });
+    res.status(500).json({ error: error.message || 'Failed to insert product' });
   }
 });
 
@@ -209,7 +201,7 @@ router.put('/products/:id', async (req, res) => {
     );
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update product' });
+    res.status(500).json({ error: error.message || 'Failed to update product' });
   }
 });
 
@@ -218,17 +210,16 @@ router.delete('/products/:id', async (req, res) => {
     await pool.query('DELETE FROM products WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete product' });
+    res.status(500).json({ error: error.message || 'Failed to delete product' });
   }
 });
 
-// Categories
 router.get('/categories', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM categories ORDER BY name ASC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch categories' });
+    res.status(500).json({ error: error.message || 'Failed to fetch categories', details: String(error) });
   }
 });
 
@@ -241,7 +232,7 @@ router.post('/categories', async (req, res) => {
     );
     res.json({ id: result.insertId, name, slug, parent_id, image_url });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to add category' });
+    res.status(500).json({ error: error.message || 'Failed to add category' });
   }
 });
 
@@ -254,7 +245,7 @@ router.put('/categories/:id', async (req, res) => {
     );
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update category' });
+    res.status(500).json({ error: error.message || 'Failed to update category' });
   }
 });
 
@@ -263,17 +254,16 @@ router.delete('/categories/:id', async (req, res) => {
     await pool.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete category' });
+    res.status(500).json({ error: error.message || 'Failed to delete category' });
   }
 });
 
-// Brands
 router.get('/brands', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM brands ORDER BY name ASC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch brands' });
+    res.status(500).json({ error: error.message || 'Failed to fetch brands' });
   }
 });
 
@@ -286,7 +276,7 @@ router.post('/brands', async (req, res) => {
     );
     res.json({ id: result.insertId, name, slug, logo_url });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to add brand' });
+    res.status(500).json({ error: error.message || 'Failed to add brand' });
   }
 });
 
@@ -299,7 +289,7 @@ router.put('/brands/:id', async (req, res) => {
     );
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update brand' });
+    res.status(500).json({ error: error.message || 'Failed to update brand' });
   }
 });
 
@@ -308,13 +298,9 @@ router.delete('/brands/:id', async (req, res) => {
     await pool.query('DELETE FROM brands WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete brand' });
+    res.status(500).json({ error: error.message || 'Failed to delete brand' });
   }
 });
-
-// ==========================================
-// 3. SETTINGS & OTHER RESOURCES
-// ==========================================
 
 // Settings
 router.get('/settings/:key', async (req, res) => {
@@ -323,7 +309,7 @@ router.get('/settings/:key', async (req, res) => {
     if (rows.length === 0) return res.json(null);
     res.json(formatRow(rows[0]));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch setting' });
+    res.status(500).json({ error: error.message || 'Failed to fetch setting' });
   }
 });
 
@@ -337,8 +323,7 @@ router.post('/settings', async (req, res) => {
     );
     res.json({ success: true, key, value });
   } catch (error) {
-    console.error('Settings upsert error:', error);
-    res.status(500).json({ error: 'Failed to save settings' });
+    res.status(500).json({ error: error.message || 'Failed to save settings' });
   }
 });
 
@@ -348,7 +333,7 @@ router.get('/banners', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM banners ORDER BY sort_order ASC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch banners' });
+    res.status(500).json({ error: error.message || 'Failed to fetch banners' });
   }
 });
 
@@ -358,7 +343,7 @@ router.get('/blog-posts', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM blog_posts ORDER BY created_at DESC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch blog posts' });
+    res.status(500).json({ error: error.message || 'Failed to fetch blog posts' });
   }
 });
 
@@ -368,7 +353,7 @@ router.get('/attributes', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM attributes ORDER BY name ASC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch attributes' });
+    res.status(500).json({ error: error.message || 'Failed to fetch attributes' });
   }
 });
 
@@ -382,7 +367,7 @@ router.post('/attributes', async (req, res) => {
     );
     res.json({ id: result.insertId, name, values });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to add attribute' });
+    res.status(500).json({ error: error.message || 'Failed to add attribute' });
   }
 });
 
@@ -396,7 +381,7 @@ router.put('/attributes/:id', async (req, res) => {
     );
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update attribute' });
+    res.status(500).json({ error: error.message || 'Failed to update attribute' });
   }
 });
 
@@ -405,7 +390,7 @@ router.delete('/attributes/:id', async (req, res) => {
     await pool.query('DELETE FROM attributes WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete attribute' });
+    res.status(500).json({ error: error.message || 'Failed to delete attribute' });
   }
 });
 
@@ -415,7 +400,7 @@ router.get('/coupons', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM coupons ORDER BY created_at DESC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch coupons' });
+    res.status(500).json({ error: error.message || 'Failed to fetch coupons' });
   }
 });
 
@@ -429,7 +414,7 @@ router.post('/coupons', async (req, res) => {
     );
     res.json({ id: result.insertId, ...c });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to add coupon' });
+    res.status(500).json({ error: error.message || 'Failed to add coupon' });
   }
 });
 
@@ -443,7 +428,7 @@ router.put('/coupons/:id', async (req, res) => {
     );
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update coupon' });
+    res.status(500).json({ error: error.message || 'Failed to update coupon' });
   }
 });
 
@@ -452,7 +437,7 @@ router.delete('/coupons/:id', async (req, res) => {
     await pool.query('DELETE FROM coupons WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete coupon' });
+    res.status(500).json({ error: error.message || 'Failed to delete coupon' });
   }
 });
 
@@ -462,7 +447,7 @@ router.get('/reviews', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM reviews ORDER BY created_at DESC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch reviews' });
+    res.status(500).json({ error: error.message || 'Failed to fetch reviews' });
   }
 });
 
@@ -475,7 +460,7 @@ router.post('/reviews', async (req, res) => {
     );
     res.json({ id: result.insertId, ...r });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to submit review' });
+    res.status(500).json({ error: error.message || 'Failed to submit review' });
   }
 });
 
@@ -485,7 +470,7 @@ router.put('/reviews/:id/reply', async (req, res) => {
     await pool.query('UPDATE reviews SET reply = ? WHERE id = ?', [reply, req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to reply to review' });
+    res.status(500).json({ error: error.message || 'Failed to reply to review' });
   }
 });
 
@@ -494,7 +479,7 @@ router.delete('/reviews/:id', async (req, res) => {
     await pool.query('DELETE FROM reviews WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete review' });
+    res.status(500).json({ error: error.message || 'Failed to delete review' });
   }
 });
 
@@ -504,13 +489,9 @@ router.get('/pages', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM pages ORDER BY created_at DESC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch pages' });
+    res.status(500).json({ error: error.message || 'Failed to fetch pages' });
   }
 });
-
-// ==========================================
-// 4. ORDERS & USER WISHLIST / ADDRESSES
-// ==========================================
 
 // Orders
 router.get('/orders', async (req, res) => {
@@ -518,7 +499,7 @@ router.get('/orders', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch orders' });
+    res.status(500).json({ error: error.message || 'Failed to fetch orders' });
   }
 });
 
@@ -533,8 +514,7 @@ router.post('/orders', async (req, res) => {
     );
     res.json({ id: result.insertId, ...o });
   } catch (error) {
-    console.error('Create order error:', error);
-    res.status(500).json({ error: 'Failed to create order' });
+    res.status(500).json({ error: error.message || 'Failed to create order' });
   }
 });
 
@@ -544,7 +524,7 @@ router.put('/orders/:id/status', async (req, res) => {
     await pool.query('UPDATE orders SET status = ? WHERE id = ?', [status, req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update order status' });
+    res.status(500).json({ error: error.message || 'Failed to update order status' });
   }
 });
 
@@ -554,7 +534,7 @@ router.get('/wishlist/:userId', async (req, res) => {
     const [rows] = await pool.query('SELECT product_id FROM wishlist WHERE user_id = ?', [req.params.userId]);
     res.json(rows.map(r => r.product_id));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch wishlist' });
+    res.status(500).json({ error: error.message || 'Failed to fetch wishlist' });
   }
 });
 
@@ -564,7 +544,7 @@ router.post('/wishlist', async (req, res) => {
     await pool.query('INSERT IGNORE INTO wishlist (user_id, product_id) VALUES (?, ?)', [user_id, product_id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to add to wishlist' });
+    res.status(500).json({ error: error.message || 'Failed to add to wishlist' });
   }
 });
 
@@ -574,7 +554,7 @@ router.delete('/wishlist', async (req, res) => {
     await pool.query('DELETE FROM wishlist WHERE user_id = ? AND product_id = ?', [user_id, product_id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to remove from wishlist' });
+    res.status(500).json({ error: error.message || 'Failed to remove from wishlist' });
   }
 });
 
@@ -584,7 +564,7 @@ router.get('/addresses/:userId', async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM addresses WHERE user_id = ? ORDER BY created_at DESC', [req.params.userId]);
     res.json(rows.map(formatRow));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch addresses' });
+    res.status(500).json({ error: error.message || 'Failed to fetch addresses' });
   }
 });
 
@@ -597,7 +577,7 @@ router.post('/addresses', async (req, res) => {
     );
     res.json({ id: result.insertId, ...a });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to add address' });
+    res.status(500).json({ error: error.message || 'Failed to add address' });
   }
 });
 
@@ -606,7 +586,7 @@ router.delete('/addresses/:id', async (req, res) => {
     await pool.query('DELETE FROM addresses WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete address' });
+    res.status(500).json({ error: error.message || 'Failed to delete address' });
   }
 });
 
